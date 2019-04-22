@@ -5,6 +5,7 @@ import (
 
 	"golang.org/x/crypto/sha3"
 
+	"github.com/dexon-foundation/decimal"
 	"github.com/dexon-foundation/dexon/common"
 	"github.com/dexon-foundation/dexon/core/vm"
 	"github.com/dexon-foundation/dexon/core/vm/sqlvm/schema"
@@ -114,8 +115,8 @@ func (s *Storage) GetPrimaryPathHash(tableRef schema.TableRef) (h common.Hash) {
 	return s.hashPathKey(key)
 }
 
-// getSequencePathHash return the hash address of a sequence.
-func (s *Storage) getSequencePathHash(
+// GetSequencePathHash return the hash address of a sequence.
+func (s *Storage) GetSequencePathHash(
 	tableRef schema.TableRef, seqIdx uint8,
 ) common.Hash {
 	// PathKey(["tables", "{table_name}", "sequence", uint8(sequence_idx)])
@@ -225,11 +226,14 @@ func (s *Storage) IncSequence(
 	tableRef schema.TableRef,
 	seqIdx uint8,
 	inc uint64,
-) uint64 {
-	seqPath := s.getSequencePathHash(tableRef, seqIdx)
+) decimal.Decimal {
+	seqPath := s.GetSequencePathHash(tableRef, seqIdx)
 	slot := s.GetState(contract, seqPath)
-	val := bytesToUint64(slot.Bytes())
-	// TODO(yenlin): Check overflow?
-	s.SetState(contract, seqPath, common.BytesToHash(uint64ToBytes(val+inc)))
-	return val
+	b := new(big.Int).SetBytes(slot.Bytes())
+	b.Add(b, new(big.Int).SetUint64(inc))
+	newHash := make([]byte, common.HashLength)
+	bs := b.Bytes()
+	copy(newHash[common.HashLength-len(bs):], bs)
+	s.SetState(contract, seqPath, common.BytesToHash(newHash))
+	return decimal.NewFromBigInt(b, 0)
 }
