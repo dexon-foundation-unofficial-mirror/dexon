@@ -38,7 +38,7 @@ import (
 	"github.com/dexon-foundation/dexon/rlp"
 )
 
-type LesServer struct {
+type LdsServer struct {
 	ldsCommons
 
 	fcManager   *flowcontrol.ClientManager // nil if our node is client only
@@ -49,7 +49,7 @@ type LesServer struct {
 	quitSync    chan struct{}
 }
 
-func NewLesServer(eth *eth.Ethereum, config *eth.Config) (*LesServer, error) {
+func NewLdsServer(eth *eth.Ethereum, config *eth.Config) (*LdsServer, error) {
 	quitSync := make(chan struct{})
 	pm, err := NewProtocolManager(eth.BlockChain().Config(), light.DefaultServerIndexerConfig, false, config.NetworkId, eth.EventMux(), eth.Engine(), newPeerSet(), eth.BlockChain(), eth.TxPool(), eth.ChainDb(), nil, nil, nil, quitSync, new(sync.WaitGroup))
 	if err != nil {
@@ -61,7 +61,7 @@ func NewLesServer(eth *eth.Ethereum, config *eth.Config) (*LesServer, error) {
 		lesTopics[i] = lesTopic(eth.BlockChain().Genesis().Hash(), pv)
 	}
 
-	srv := &LesServer{
+	srv := &LdsServer{
 		ldsCommons: ldsCommons{
 			config:           config,
 			chainDb:          eth.ChainDb(),
@@ -107,12 +107,12 @@ func NewLesServer(eth *eth.Ethereum, config *eth.Config) (*LesServer, error) {
 	return srv, nil
 }
 
-func (s *LesServer) Protocols() []p2p.Protocol {
+func (s *LdsServer) Protocols() []p2p.Protocol {
 	return s.makeProtocols(ServerProtocolVersions)
 }
 
 // Start starts the LES server
-func (s *LesServer) Start(srvr *p2p.Server) {
+func (s *LdsServer) Start(srvr *p2p.Server) {
 	s.protocolManager.Start(s.config.LightPeers)
 	if srvr.DiscV5 != nil {
 		for _, topic := range s.lesTopics {
@@ -130,12 +130,12 @@ func (s *LesServer) Start(srvr *p2p.Server) {
 	s.protocolManager.blockLoop()
 }
 
-func (s *LesServer) SetBloomBitsIndexer(bloomIndexer *core.ChainIndexer) {
+func (s *LdsServer) SetBloomBitsIndexer(bloomIndexer *core.ChainIndexer) {
 	bloomIndexer.AddChildIndexer(s.bloomTrieIndexer)
 }
 
 // Stop stops the LES service
-func (s *LesServer) Stop() {
+func (s *LdsServer) Stop() {
 	s.chtIndexer.Close()
 	// bloom trie indexer is closed by parent bloombits indexer
 	s.fcCostStats.store()

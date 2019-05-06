@@ -98,7 +98,7 @@ type ProtocolManager struct {
 	blockchain  BlockChain
 	chainDb     ethdb.Database
 	odr         *LdsOdr
-	server      *LesServer
+	server      *LdsServer
 	serverPool  *serverPool
 	clientPool  *freeClientPool
 	lesTopic    discv5.Topic
