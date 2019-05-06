@@ -377,7 +377,7 @@ func newClientServerEnv(t *testing.T, blocks int, protocol int, waitIndexers fun
 
 	dist := newRequestDistributor(lPeers, make(chan struct{}))
 	rm := newRetrieveManager(lPeers, dist, nil)
-	odr := NewLesOdr(ldb, light.TestClientIndexerConfig, rm)
+	odr := NewLdsOdr(ldb, light.TestClientIndexerConfig, rm)
 
 	cIndexer, bIndexer, btIndexer := testIndexers(db, nil, light.TestServerIndexerConfig)
 	lcIndexer, lbIndexer, lbtIndexer := testIndexers(ldb, odr, light.TestClientIndexerConfig)

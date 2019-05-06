@@ -34,7 +34,7 @@ type LdsOdr struct {
 	stop                                       chan struct{}
 }
 
-func NewLesOdr(db ethdb.Database, config *light.IndexerConfig, retriever *retrieveManager) *LdsOdr {
+func NewLdsOdr(db ethdb.Database, config *light.IndexerConfig, retriever *retrieveManager) *LdsOdr {
 	return &LdsOdr{
 		db:            db,
 		indexerConfig: config,
