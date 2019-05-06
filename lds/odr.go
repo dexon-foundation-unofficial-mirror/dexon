@@ -100,7 +100,7 @@ type Msg struct {
 // Retrieve tries to fetch an object from the LES network.
 // If the network retrieval was successful, it stores the object in local db.
 func (odr *LdsOdr) Retrieve(ctx context.Context, req light.OdrRequest) (err error) {
-	lreq := LesRequest(req)
+	lreq := LdsRequest(req)
 
 	reqID := genReqID()
 	rq := &distReq{
