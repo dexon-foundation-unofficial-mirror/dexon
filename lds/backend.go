@@ -48,7 +48,7 @@ import (
 type LightDexon struct {
 	ldsCommons
 
-	odr         *LesOdr
+	odr         *LdsOdr
 	relay       *LesTxRelay
 	chainConfig *params.ChainConfig
 	// Channel for shutting down the service

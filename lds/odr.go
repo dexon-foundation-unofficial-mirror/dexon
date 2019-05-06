@@ -25,8 +25,8 @@ import (
 	"github.com/dexon-foundation/dexon/log"
 )
 
-// LesOdr implements light.OdrBackend
-type LesOdr struct {
+// LdsOdr implements light.OdrBackend
+type LdsOdr struct {
 	db                                         ethdb.Database
 	indexerConfig                              *light.IndexerConfig
 	chtIndexer, bloomTrieIndexer, bloomIndexer *core.ChainIndexer
@@ -34,8 +34,8 @@ type LesOdr struct {
 	stop                                       chan struct{}
 }
 
-func NewLesOdr(db ethdb.Database, config *light.IndexerConfig, retriever *retrieveManager) *LesOdr {
-	return &LesOdr{
+func NewLesOdr(db ethdb.Database, config *light.IndexerConfig, retriever *retrieveManager) *LdsOdr {
+	return &LdsOdr{
 		db:            db,
 		indexerConfig: config,
 		retriever:     retriever,
@@ -44,39 +44,39 @@ func NewLesOdr(db ethdb.Database, config *light.IndexerConfig, retriever *retrie
 }
 
 // Stop cancels all pending retrievals
-func (odr *LesOdr) Stop() {
+func (odr *LdsOdr) Stop() {
 	close(odr.stop)
 }
 
 // Database returns the backing database
-func (odr *LesOdr) Database() ethdb.Database {
+func (odr *LdsOdr) Database() ethdb.Database {
 	return odr.db
 }
 
 // SetIndexers adds the necessary chain indexers to the ODR backend
-func (odr *LesOdr) SetIndexers(chtIndexer, bloomTrieIndexer, bloomIndexer *core.ChainIndexer) {
+func (odr *LdsOdr) SetIndexers(chtIndexer, bloomTrieIndexer, bloomIndexer *core.ChainIndexer) {
 	odr.chtIndexer = chtIndexer
 	odr.bloomTrieIndexer = bloomTrieIndexer
 	odr.bloomIndexer = bloomIndexer
 }
 
 // ChtIndexer returns the CHT chain indexer
-func (odr *LesOdr) ChtIndexer() *core.ChainIndexer {
+func (odr *LdsOdr) ChtIndexer() *core.ChainIndexer {
 	return odr.chtIndexer
 }
 
 // BloomTrieIndexer returns the bloom trie chain indexer
-func (odr *LesOdr) BloomTrieIndexer() *core.ChainIndexer {
+func (odr *LdsOdr) BloomTrieIndexer() *core.ChainIndexer {
 	return odr.bloomTrieIndexer
 }
 
 // BloomIndexer returns the bloombits chain indexer
-func (odr *LesOdr) BloomIndexer() *core.ChainIndexer {
+func (odr *LdsOdr) BloomIndexer() *core.ChainIndexer {
 	return odr.bloomIndexer
 }
 
 // IndexerConfig returns the indexer config.
-func (odr *LesOdr) IndexerConfig() *light.IndexerConfig {
+func (odr *LdsOdr) IndexerConfig() *light.IndexerConfig {
 	return odr.indexerConfig
 }
 
@@ -99,7 +99,7 @@ type Msg struct {
 
 // Retrieve tries to fetch an object from the LES network.
 // If the network retrieval was successful, it stores the object in local db.
-func (odr *LesOdr) Retrieve(ctx context.Context, req light.OdrRequest) (err error) {
+func (odr *LdsOdr) Retrieve(ctx context.Context, req light.OdrRequest) (err error) {
 	lreq := LesRequest(req)
 
 	reqID := genReqID()
