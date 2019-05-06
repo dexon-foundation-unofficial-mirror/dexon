@@ -164,29 +164,29 @@ func lesTopic(genesisHash common.Hash, protocolVersion uint) discv5.Topic {
 type LightDummyAPI struct{}
 
 // Etherbase is the address that mining rewards will be send to
-func (s *LightDummyAPI) Etherbase() (common.Address, error) {
+func (l *LightDummyAPI) Etherbase() (common.Address, error) {
 	return common.Address{}, fmt.Errorf("not supported")
 }
 
 // Coinbase is the address that mining rewards will be send to (alias for Etherbase)
-func (s *LightDummyAPI) Coinbase() (common.Address, error) {
+func (l *LightDummyAPI) Coinbase() (common.Address, error) {
 	return common.Address{}, fmt.Errorf("not supported")
 }
 
 // Hashrate returns the POW hashrate
-func (s *LightDummyAPI) Hashrate() hexutil.Uint {
+func (l *LightDummyAPI) Hashrate() hexutil.Uint {
 	return 0
 }
 
 // Mining returns an indication if this node is currently mining.
-func (s *LightDummyAPI) Mining() bool {
+func (l *LightDummyAPI) Mining() bool {
 	return false
 }
 
 // APIs returns the collection of RPC services the ethereum package offers.
 // NOTE, some of these services probably need to be moved to somewhere else.
-func (s *LightDexon) APIs() []rpc.API {
-	return append(ethapi.GetAPIs(s.ApiBackend), []rpc.API{
+func (l *LightDexon) APIs() []rpc.API {
+	return append(ethapi.GetAPIs(l.ApiBackend), []rpc.API{
 		{
 			Namespace: "eth",
 			Version:   "1.0",
@@ -195,68 +195,68 @@ func (s *LightDexon) APIs() []rpc.API {
 		}, {
 			Namespace: "eth",
 			Version:   "1.0",
-			Service:   downloader.NewPublicDownloaderAPI(s.protocolManager.downloader, s.eventMux),
+			Service:   downloader.NewPublicDownloaderAPI(l.protocolManager.downloader, l.eventMux),
 			Public:    true,
 		}, {
 			Namespace: "eth",
 			Version:   "1.0",
-			Service:   filters.NewPublicFilterAPI(s.ApiBackend, true),
+			Service:   filters.NewPublicFilterAPI(l.ApiBackend, true),
 			Public:    true,
 		}, {
 			Namespace: "net",
 			Version:   "1.0",
-			Service:   s.netRPCService,
+			Service:   l.netRPCService,
 			Public:    true,
 		},
 	}...)
 }
 
-func (s *LightDexon) ResetWithGenesisBlock(gb *types.Block) {
-	s.blockchain.ResetWithGenesisBlock(gb)
+func (l *LightDexon) ResetWithGenesisBlock(gb *types.Block) {
+	l.blockchain.ResetWithGenesisBlock(gb)
 }
 
-func (s *LightDexon) BlockChain() *light.LightChain { return s.blockchain }
-func (s *LightDexon) TxPool() *light.TxPool         { return s.txPool }
-func (s *LightDexon) Engine() consensus.Engine      { return s.engine }
-func (s *LightDexon) LdsVersion() int               { return int(ClientProtocolVersions[0]) }
-func (s *LightDexon) Downloader() ethapi.Downloader { return s.protocolManager.downloader }
-func (s *LightDexon) EventMux() *event.TypeMux      { return s.eventMux }
+func (l *LightDexon) BlockChain() *light.LightChain { return l.blockchain }
+func (l *LightDexon) TxPool() *light.TxPool         { return l.txPool }
+func (l *LightDexon) Engine() consensus.Engine      { return l.engine }
+func (l *LightDexon) LdsVersion() int               { return int(ClientProtocolVersions[0]) }
+func (l *LightDexon) Downloader() ethapi.Downloader { return l.protocolManager.downloader }
+func (l *LightDexon) EventMux() *event.TypeMux      { return l.eventMux }
 
 // Protocols implements node.Service, returning all the currently configured
 // network protocols to start.
-func (s *LightDexon) Protocols() []p2p.Protocol {
-	return s.makeProtocols(ClientProtocolVersions)
+func (l *LightDexon) Protocols() []p2p.Protocol {
+	return l.makeProtocols(ClientProtocolVersions)
 }
 
 // Start implements node.Service, starting all internal goroutines needed by the
 // Ethereum protocol implementation.
-func (s *LightDexon) Start(srvr *p2p.Server) error {
+func (l *LightDexon) Start(srvr *p2p.Server) error {
 	log.Warn("Light client mode is an experimental feature")
-	s.startBloomHandlers(params.BloomBitsBlocksClient)
-	s.netRPCService = ethapi.NewPublicNetAPI(srvr, s.networkId)
+	l.startBloomHandlers(params.BloomBitsBlocksClient)
+	l.netRPCService = ethapi.NewPublicNetAPI(srvr, l.networkId)
 	// clients are searching for the first advertised protocol in the list
 	protocolVersion := AdvertiseProtocolVersions[0]
-	s.serverPool.start(srvr, lesTopic(s.blockchain.Genesis().Hash(), protocolVersion))
-	s.protocolManager.Start(s.config.LightPeers)
+	l.serverPool.start(srvr, lesTopic(l.blockchain.Genesis().Hash(), protocolVersion))
+	l.protocolManager.Start(l.config.LightPeers)
 	return nil
 }
 
 // Stop implements node.Service, terminating all internal goroutines used by the
 // Ethereum protocol.
-func (s *LightDexon) Stop() error {
-	s.odr.Stop()
-	s.bloomIndexer.Close()
-	s.chtIndexer.Close()
-	s.blockchain.Stop()
-	s.protocolManager.Stop()
-	s.txPool.Stop()
-	s.engine.Close()
+func (l *LightDexon) Stop() error {
+	l.odr.Stop()
+	l.bloomIndexer.Close()
+	l.chtIndexer.Close()
+	l.blockchain.Stop()
+	l.protocolManager.Stop()
+	l.txPool.Stop()
+	l.engine.Close()
 
-	s.eventMux.Stop()
+	l.eventMux.Stop()
 
 	time.Sleep(time.Millisecond * 200)
-	s.chainDb.Close()
-	close(s.shutdownChan)
+	l.chainDb.Close()
+	close(l.shutdownChan)
 
 	return nil
 }
