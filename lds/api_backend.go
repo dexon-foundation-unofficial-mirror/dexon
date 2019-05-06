@@ -39,32 +39,32 @@ import (
 )
 
 type LdsApiBackend struct {
-	eth *LightDexon
+	dex *LightDexon
 	gpo *gasprice.Oracle
 }
 
 func (b *LdsApiBackend) ChainConfig() *params.ChainConfig {
-	return b.eth.chainConfig
+	return b.dex.chainConfig
 }
 
 func (b *LdsApiBackend) CurrentBlock() *types.Block {
-	return types.NewBlockWithHeader(b.eth.BlockChain().CurrentHeader())
+	return types.NewBlockWithHeader(b.dex.BlockChain().CurrentHeader())
 }
 
 func (b *LdsApiBackend) SetHead(number uint64) {
-	b.eth.protocolManager.downloader.Cancel()
-	b.eth.blockchain.SetHead(number)
+	b.dex.protocolManager.downloader.Cancel()
+	b.dex.blockchain.SetHead(number)
 }
 
 func (b *LdsApiBackend) HeaderByNumber(ctx context.Context, blockNr rpc.BlockNumber) (*types.Header, error) {
 	if blockNr == rpc.LatestBlockNumber || blockNr == rpc.PendingBlockNumber {
-		return b.eth.blockchain.CurrentHeader(), nil
+		return b.dex.blockchain.CurrentHeader(), nil
 	}
-	return b.eth.blockchain.GetHeaderByNumberOdr(ctx, uint64(blockNr))
+	return b.dex.blockchain.GetHeaderByNumberOdr(ctx, uint64(blockNr))
 }
 
 func (b *LdsApiBackend) HeaderByHash(ctx context.Context, hash common.Hash) (*types.Header, error) {
-	return b.eth.blockchain.GetHeaderByHash(hash), nil
+	return b.dex.blockchain.GetHeaderByHash(hash), nil
 }
 
 func (b *LdsApiBackend) BlockByNumber(ctx context.Context, blockNr rpc.BlockNumber) (*types.Block, error) {
@@ -80,100 +80,100 @@ func (b *LdsApiBackend) StateAndHeaderByNumber(ctx context.Context, blockNr rpc.
 	if header == nil || err != nil {
 		return nil, nil, err
 	}
-	return light.NewState(ctx, header, b.eth.odr), header, nil
+	return light.NewState(ctx, header, b.dex.odr), header, nil
 }
 
 func (b *LdsApiBackend) GetBlock(ctx context.Context, blockHash common.Hash) (*types.Block, error) {
-	return b.eth.blockchain.GetBlockByHash(ctx, blockHash)
+	return b.dex.blockchain.GetBlockByHash(ctx, blockHash)
 }
 
 func (b *LdsApiBackend) GetReceipts(ctx context.Context, hash common.Hash) (types.Receipts, error) {
-	if number := rawdb.ReadHeaderNumber(b.eth.chainDb, hash); number != nil {
-		return light.GetBlockReceipts(ctx, b.eth.odr, hash, *number)
+	if number := rawdb.ReadHeaderNumber(b.dex.chainDb, hash); number != nil {
+		return light.GetBlockReceipts(ctx, b.dex.odr, hash, *number)
 	}
 	return nil, nil
 }
 
 func (b *LdsApiBackend) GetLogs(ctx context.Context, hash common.Hash) ([][]*types.Log, error) {
-	if number := rawdb.ReadHeaderNumber(b.eth.chainDb, hash); number != nil {
-		return light.GetBlockLogs(ctx, b.eth.odr, hash, *number)
+	if number := rawdb.ReadHeaderNumber(b.dex.chainDb, hash); number != nil {
+		return light.GetBlockLogs(ctx, b.dex.odr, hash, *number)
 	}
 	return nil, nil
 }
 
 func (b *LdsApiBackend) GetTd(hash common.Hash) *big.Int {
-	return b.eth.blockchain.GetTdByHash(hash)
+	return b.dex.blockchain.GetTdByHash(hash)
 }
 
 func (b *LdsApiBackend) GetEVM(ctx context.Context, msg core.Message, state *state.StateDB, header *types.Header) (*vm.EVM, func() error, error) {
 	state.SetBalance(msg.From(), math.MaxBig256)
-	context := core.NewEVMContext(msg, header, b.eth.blockchain, nil)
-	return vm.NewEVM(context, state, b.eth.chainConfig, vm.Config{}), state.Error, nil
+	context := core.NewEVMContext(msg, header, b.dex.blockchain, nil)
+	return vm.NewEVM(context, state, b.dex.chainConfig, vm.Config{}), state.Error, nil
 }
 
 func (b *LdsApiBackend) SendTx(ctx context.Context, signedTx *types.Transaction) error {
-	return b.eth.txPool.Add(ctx, signedTx)
+	return b.dex.txPool.Add(ctx, signedTx)
 }
 
 func (b *LdsApiBackend) SendTxs(ctx context.Context, signedTxs []*types.Transaction) []error {
-	b.eth.txPool.AddBatch(ctx, signedTxs)
+	b.dex.txPool.AddBatch(ctx, signedTxs)
 	return nil
 }
 
 func (b *LdsApiBackend) RemoveTx(txHash common.Hash) {
-	b.eth.txPool.RemoveTx(txHash)
+	b.dex.txPool.RemoveTx(txHash)
 }
 
 func (b *LdsApiBackend) GetPoolTransactions() (types.Transactions, error) {
-	return b.eth.txPool.GetTransactions()
+	return b.dex.txPool.GetTransactions()
 }
 
 func (b *LdsApiBackend) GetPoolTransaction(txHash common.Hash) *types.Transaction {
-	return b.eth.txPool.GetTransaction(txHash)
+	return b.dex.txPool.GetTransaction(txHash)
 }
 
 func (b *LdsApiBackend) GetPoolNonce(ctx context.Context, addr common.Address) (uint64, error) {
-	return b.eth.txPool.GetNonce(ctx, addr)
+	return b.dex.txPool.GetNonce(ctx, addr)
 }
 
 func (b *LdsApiBackend) Stats() (pending int, queued int) {
-	return b.eth.txPool.Stats(), 0
+	return b.dex.txPool.Stats(), 0
 }
 
 func (b *LdsApiBackend) TxPoolContent() (map[common.Address]types.Transactions, map[common.Address]types.Transactions) {
-	return b.eth.txPool.Content()
+	return b.dex.txPool.Content()
 }
 
 func (b *LdsApiBackend) SubscribeNewTxsEvent(ch chan<- core.NewTxsEvent) event.Subscription {
-	return b.eth.txPool.SubscribeNewTxsEvent(ch)
+	return b.dex.txPool.SubscribeNewTxsEvent(ch)
 }
 
 func (b *LdsApiBackend) SubscribeChainEvent(ch chan<- core.ChainEvent) event.Subscription {
-	return b.eth.blockchain.SubscribeChainEvent(ch)
+	return b.dex.blockchain.SubscribeChainEvent(ch)
 }
 
 func (b *LdsApiBackend) SubscribeChainHeadEvent(ch chan<- core.ChainHeadEvent) event.Subscription {
-	return b.eth.blockchain.SubscribeChainHeadEvent(ch)
+	return b.dex.blockchain.SubscribeChainHeadEvent(ch)
 }
 
 func (b *LdsApiBackend) SubscribeChainSideEvent(ch chan<- core.ChainSideEvent) event.Subscription {
-	return b.eth.blockchain.SubscribeChainSideEvent(ch)
+	return b.dex.blockchain.SubscribeChainSideEvent(ch)
 }
 
 func (b *LdsApiBackend) SubscribeLogsEvent(ch chan<- []*types.Log) event.Subscription {
-	return b.eth.blockchain.SubscribeLogsEvent(ch)
+	return b.dex.blockchain.SubscribeLogsEvent(ch)
 }
 
 func (b *LdsApiBackend) SubscribeRemovedLogsEvent(ch chan<- core.RemovedLogsEvent) event.Subscription {
-	return b.eth.blockchain.SubscribeRemovedLogsEvent(ch)
+	return b.dex.blockchain.SubscribeRemovedLogsEvent(ch)
 }
 
 func (b *LdsApiBackend) Downloader() ethapi.Downloader {
-	return b.eth.Downloader()
+	return b.dex.Downloader()
 }
 
 func (b *LdsApiBackend) ProtocolVersion() int {
-	return b.eth.LesVersion() + 10000
+	return b.dex.LesVersion() + 10000
 }
 
 func (b *LdsApiBackend) SuggestPrice(ctx context.Context) (*big.Int, error) {
@@ -181,31 +181,31 @@ func (b *LdsApiBackend) SuggestPrice(ctx context.Context) (*big.Int, error) {
 }
 
 func (b *LdsApiBackend) ChainDb() ethdb.Database {
-	return b.eth.chainDb
+	return b.dex.chainDb
 }
 
 func (b *LdsApiBackend) EventMux() *event.TypeMux {
-	return b.eth.eventMux
+	return b.dex.eventMux
 }
 
 func (b *LdsApiBackend) AccountManager() *accounts.Manager {
-	return b.eth.accountManager
+	return b.dex.accountManager
 }
 
 func (b *LdsApiBackend) RPCGasCap() *big.Int {
-	return b.eth.config.RPCGasCap
+	return b.dex.config.RPCGasCap
 }
 
 func (b *LdsApiBackend) BloomStatus() (uint64, uint64) {
-	if b.eth.bloomIndexer == nil {
+	if b.dex.bloomIndexer == nil {
 		return 0, 0
 	}
-	sections, _, _ := b.eth.bloomIndexer.Sections()
+	sections, _, _ := b.dex.bloomIndexer.Sections()
 	return params.BloomBitsBlocksClient, sections
 }
 
 func (b *LdsApiBackend) ServiceFilter(ctx context.Context, session *bloombits.MatcherSession) {
 	for i := 0; i < bloomFilterThreads; i++ {
-		go session.Multiplex(bloomRetrievalBatch, bloomRetrievalWait, b.eth.bloomRequests)
+		go session.Multiplex(bloomRetrievalBatch, bloomRetrievalWait, b.dex.bloomRequests)
 	}
 }
