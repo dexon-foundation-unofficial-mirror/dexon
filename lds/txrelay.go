@@ -39,7 +39,7 @@ type LdsTxRelay struct {
 	reqDist *requestDistributor
 }
 
-func NewLesTxRelay(ps *peerSet, reqDist *requestDistributor) *LdsTxRelay {
+func NewLdsTxRelay(ps *peerSet, reqDist *requestDistributor) *LdsTxRelay {
 	r := &LdsTxRelay{
 		txSent:    make(map[common.Hash]*ltrInfo),
 		txPending: make(map[common.Hash]struct{}),

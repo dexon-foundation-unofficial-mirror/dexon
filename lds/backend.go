@@ -109,7 +109,7 @@ func New(ctx *node.ServiceContext, config *eth.Config) (*LightDexon, error) {
 		bloomIndexer:   eth.NewBloomIndexer(chainDb, params.BloomBitsBlocksClient, params.HelperTrieConfirmations),
 	}
 
-	leth.relay = NewLesTxRelay(peers, leth.reqDist)
+	leth.relay = NewLdsTxRelay(peers, leth.reqDist)
 	leth.serverPool = newServerPool(chainDb, quitSync, &leth.wg)
 	leth.retriever = newRetrieveManager(peers, leth.reqDist, leth.serverPool)
 
