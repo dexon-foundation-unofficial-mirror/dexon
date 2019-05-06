@@ -49,7 +49,7 @@ type LightDexon struct {
 	ldsCommons
 
 	odr         *LdsOdr
-	relay       *LesTxRelay
+	relay       *LdsTxRelay
 	chainConfig *params.ChainConfig
 	// Channel for shutting down the service
 	shutdownChan chan bool
