@@ -91,7 +91,7 @@ func New(ctx *node.ServiceContext, config *eth.Config) (*LightDexon, error) {
 	peers := newPeerSet()
 	quitSync := make(chan struct{})
 
-	leth := &LightDexon{
+	ldex := &LightDexon{
 		ldsCommons: ldsCommons{
 			chainDb: chainDb,
 			config:  config,
@@ -109,43 +109,43 @@ func New(ctx *node.ServiceContext, config *eth.Config) (*LightDexon, error) {
 		bloomIndexer:   eth.NewBloomIndexer(chainDb, params.BloomBitsBlocksClient, params.HelperTrieConfirmations),
 	}
 
-	leth.relay = NewLdsTxRelay(peers, leth.reqDist)
-	leth.serverPool = newServerPool(chainDb, quitSync, &leth.wg)
-	leth.retriever = newRetrieveManager(peers, leth.reqDist, leth.serverPool)
+	ldex.relay = NewLdsTxRelay(peers, ldex.reqDist)
+	ldex.serverPool = newServerPool(chainDb, quitSync, &ldex.wg)
+	ldex.retriever = newRetrieveManager(peers, ldex.reqDist, ldex.serverPool)
 
-	leth.odr = NewLdsOdr(chainDb, light.DefaultClientIndexerConfig, leth.retriever)
-	leth.chtIndexer = light.NewChtIndexer(chainDb, leth.odr, params.CHTFrequencyClient, params.HelperTrieConfirmations)
-	leth.bloomTrieIndexer = light.NewBloomTrieIndexer(chainDb, leth.odr, params.BloomBitsBlocksClient, params.BloomTrieFrequency)
-	leth.odr.SetIndexers(leth.chtIndexer, leth.bloomTrieIndexer, leth.bloomIndexer)
+	ldex.odr = NewLdsOdr(chainDb, light.DefaultClientIndexerConfig, ldex.retriever)
+	ldex.chtIndexer = light.NewChtIndexer(chainDb, ldex.odr, params.CHTFrequencyClient, params.HelperTrieConfirmations)
+	ldex.bloomTrieIndexer = light.NewBloomTrieIndexer(chainDb, ldex.odr, params.BloomBitsBlocksClient, params.BloomTrieFrequency)
+	ldex.odr.SetIndexers(ldex.chtIndexer, ldex.bloomTrieIndexer, ldex.bloomIndexer)
 
 	// Note: NewLightChain adds the trusted checkpoint so it needs an ODR with
 	// indexers already set but not started yet
-	if leth.blockchain, err = light.NewLightChain(leth.odr, leth.chainConfig, leth.engine); err != nil {
+	if ldex.blockchain, err = light.NewLightChain(ldex.odr, ldex.chainConfig, ldex.engine); err != nil {
 		return nil, err
 	}
 	// Note: AddChildIndexer starts the update process for the child
-	leth.bloomIndexer.AddChildIndexer(leth.bloomTrieIndexer)
-	leth.chtIndexer.Start(leth.blockchain)
-	leth.bloomIndexer.Start(leth.blockchain)
+	ldex.bloomIndexer.AddChildIndexer(ldex.bloomTrieIndexer)
+	ldex.chtIndexer.Start(ldex.blockchain)
+	ldex.bloomIndexer.Start(ldex.blockchain)
 
 	// Rewind the chain in case of an incompatible config upgrade.
 	if compat, ok := genesisErr.(*params.ConfigCompatError); ok {
 		log.Warn("Rewinding chain to upgrade configuration", "err", compat)
-		leth.blockchain.SetHead(compat.RewindTo)
+		ldex.blockchain.SetHead(compat.RewindTo)
 		rawdb.WriteChainConfig(chainDb, genesisHash, chainConfig)
 	}
 
-	leth.txPool = light.NewTxPool(leth.chainConfig, leth.blockchain, leth.relay)
-	if leth.protocolManager, err = NewProtocolManager(leth.chainConfig, light.DefaultClientIndexerConfig, true, config.NetworkId, leth.eventMux, leth.engine, leth.peers, leth.blockchain, nil, chainDb, leth.odr, leth.relay, leth.serverPool, quitSync, &leth.wg); err != nil {
+	ldex.txPool = light.NewTxPool(ldex.chainConfig, ldex.blockchain, ldex.relay)
+	if ldex.protocolManager, err = NewProtocolManager(ldex.chainConfig, light.DefaultClientIndexerConfig, true, config.NetworkId, ldex.eventMux, ldex.engine, ldex.peers, ldex.blockchain, nil, chainDb, ldex.odr, ldex.relay, ldex.serverPool, quitSync, &ldex.wg); err != nil {
 		return nil, err
 	}
-	leth.ApiBackend = &LdsApiBackend{leth, nil}
+	ldex.ApiBackend = &LdsApiBackend{ldex, nil}
 	gpoParams := config.GPO
 	if gpoParams.Default == nil {
 		gpoParams.Default = config.MinerGasPrice
 	}
-	leth.ApiBackend.gpo = gasprice.NewOracle(leth.ApiBackend, gpoParams)
-	return leth, nil
+	ldex.ApiBackend.gpo = gasprice.NewOracle(ldex.ApiBackend, gpoParams)
+	return ldex, nil
 }
 
 func lesTopic(genesisHash common.Hash, protocolVersion uint) discv5.Topic {
