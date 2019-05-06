@@ -39,7 +39,7 @@ import (
 )
 
 type LesServer struct {
-	lesCommons
+	ldsCommons
 
 	fcManager   *flowcontrol.ClientManager // nil if our node is client only
 	fcCostStats *requestCostStats
@@ -62,7 +62,7 @@ func NewLesServer(eth *eth.Ethereum, config *eth.Config) (*LesServer, error) {
 	}
 
 	srv := &LesServer{
-		lesCommons: lesCommons{
+		ldsCommons: ldsCommons{
 			config:           config,
 			chainDb:          eth.ChainDb(),
 			iConfig:          light.DefaultServerIndexerConfig,

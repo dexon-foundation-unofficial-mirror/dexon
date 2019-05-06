@@ -46,7 +46,7 @@ import (
 )
 
 type LightDexon struct {
-	lesCommons
+	ldsCommons
 
 	odr         *LesOdr
 	relay       *LesTxRelay
@@ -92,7 +92,7 @@ func New(ctx *node.ServiceContext, config *eth.Config) (*LightDexon, error) {
 	quitSync := make(chan struct{})
 
 	leth := &LightDexon{
-		lesCommons: lesCommons{
+		ldsCommons: ldsCommons{
 			chainDb: chainDb,
 			config:  config,
 			iConfig: light.DefaultClientIndexerConfig,
