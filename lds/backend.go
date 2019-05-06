@@ -45,7 +45,7 @@ import (
 	rpc "github.com/dexon-foundation/dexon/rpc"
 )
 
-type LightEthereum struct {
+type LightDexon struct {
 	lesCommons
 
 	odr         *LesOdr
@@ -77,7 +77,7 @@ type LightEthereum struct {
 	wg sync.WaitGroup
 }
 
-func New(ctx *node.ServiceContext, config *eth.Config) (*LightEthereum, error) {
+func New(ctx *node.ServiceContext, config *eth.Config) (*LightDexon, error) {
 	chainDb, err := eth.CreateDB(ctx, config, "lightchaindata")
 	if err != nil {
 		return nil, err
@@ -91,7 +91,7 @@ func New(ctx *node.ServiceContext, config *eth.Config) (*LightEthereum, error) {
 	peers := newPeerSet()
 	quitSync := make(chan struct{})
 
-	leth := &LightEthereum{
+	leth := &LightDexon{
 		lesCommons: lesCommons{
 			chainDb: chainDb,
 			config:  config,
@@ -185,7 +185,7 @@ func (s *LightDummyAPI) Mining() bool {
 
 // APIs returns the collection of RPC services the ethereum package offers.
 // NOTE, some of these services probably need to be moved to somewhere else.
-func (s *LightEthereum) APIs() []rpc.API {
+func (s *LightDexon) APIs() []rpc.API {
 	return append(ethapi.GetAPIs(s.ApiBackend), []rpc.API{
 		{
 			Namespace: "eth",
@@ -211,26 +211,26 @@ func (s *LightEthereum) APIs() []rpc.API {
 	}...)
 }
 
-func (s *LightEthereum) ResetWithGenesisBlock(gb *types.Block) {
+func (s *LightDexon) ResetWithGenesisBlock(gb *types.Block) {
 	s.blockchain.ResetWithGenesisBlock(gb)
 }
 
-func (s *LightEthereum) BlockChain() *light.LightChain { return s.blockchain }
-func (s *LightEthereum) TxPool() *light.TxPool         { return s.txPool }
-func (s *LightEthereum) Engine() consensus.Engine      { return s.engine }
-func (s *LightEthereum) LesVersion() int               { return int(ClientProtocolVersions[0]) }
-func (s *LightEthereum) Downloader() ethapi.Downloader { return s.protocolManager.downloader }
-func (s *LightEthereum) EventMux() *event.TypeMux      { return s.eventMux }
+func (s *LightDexon) BlockChain() *light.LightChain { return s.blockchain }
+func (s *LightDexon) TxPool() *light.TxPool         { return s.txPool }
+func (s *LightDexon) Engine() consensus.Engine      { return s.engine }
+func (s *LightDexon) LesVersion() int               { return int(ClientProtocolVersions[0]) }
+func (s *LightDexon) Downloader() ethapi.Downloader { return s.protocolManager.downloader }
+func (s *LightDexon) EventMux() *event.TypeMux      { return s.eventMux }
 
 // Protocols implements node.Service, returning all the currently configured
 // network protocols to start.
-func (s *LightEthereum) Protocols() []p2p.Protocol {
+func (s *LightDexon) Protocols() []p2p.Protocol {
 	return s.makeProtocols(ClientProtocolVersions)
 }
 
 // Start implements node.Service, starting all internal goroutines needed by the
 // Ethereum protocol implementation.
-func (s *LightEthereum) Start(srvr *p2p.Server) error {
+func (s *LightDexon) Start(srvr *p2p.Server) error {
 	log.Warn("Light client mode is an experimental feature")
 	s.startBloomHandlers(params.BloomBitsBlocksClient)
 	s.netRPCService = ethapi.NewPublicNetAPI(srvr, s.networkId)
@@ -243,7 +243,7 @@ func (s *LightEthereum) Start(srvr *p2p.Server) error {
 
 // Stop implements node.Service, terminating all internal goroutines used by the
 // Ethereum protocol.
-func (s *LightEthereum) Stop() error {
+func (s *LightDexon) Stop() error {
 	s.odr.Stop()
 	s.bloomIndexer.Close()
 	s.chtIndexer.Close()

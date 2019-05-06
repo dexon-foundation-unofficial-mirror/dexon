@@ -1398,7 +1398,7 @@ func RegisterEthStatsService(stack *node.Node, url string) {
 		var ethServ *eth.Ethereum
 		ctx.Service(&ethServ)
 
-		var lesServ *lds.LightEthereum
+		var lesServ *lds.LightDexon
 		ctx.Service(&lesServ)
 
 		return ethstats.New(url, ethServ, lesServ)
