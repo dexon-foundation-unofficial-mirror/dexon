@@ -380,7 +380,7 @@ func init() {
 		".pkd":         "application/vnd.hbci",
 		".bpd":         "application/vnd.hbci",
 		".hdt":         "application/vnd.hdt",
-		".les":         "application/vnd.hhe.lesson-player",
+		".lds":         "application/vnd.hhe.lesson-player",
 		".hpgl":        "application/vnd.hp-HPGL",
 		".hpi":         "application/vnd.hp-hpid",
 		".hpid":        "application/vnd.hp-hpid",

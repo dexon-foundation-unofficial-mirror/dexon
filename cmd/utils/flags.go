@@ -46,7 +46,7 @@ import (
 	"github.com/dexon-foundation/dexon/eth/gasprice"
 	"github.com/dexon-foundation/dexon/ethdb"
 	"github.com/dexon-foundation/dexon/ethstats"
-	"github.com/dexon-foundation/dexon/les"
+	"github.com/dexon-foundation/dexon/lds"
 	"github.com/dexon-foundation/dexon/log"
 	"github.com/dexon-foundation/dexon/metrics"
 	"github.com/dexon-foundation/dexon/metrics/influxdb"
@@ -1398,7 +1398,7 @@ func RegisterEthStatsService(stack *node.Node, url string) {
 		var ethServ *eth.Ethereum
 		ctx.Service(&ethServ)
 
-		var lesServ *les.LightEthereum
+		var lesServ *lds.LightEthereum
 		ctx.Service(&lesServ)
 
 		return ethstats.New(url, ethServ, lesServ)

@@ -50,7 +50,7 @@ import (
 	"github.com/dexon-foundation/dexon/eth/downloader"
 	"github.com/dexon-foundation/dexon/ethclient"
 	"github.com/dexon-foundation/dexon/ethstats"
-	"github.com/dexon-foundation/dexon/les"
+	"github.com/dexon-foundation/dexon/lds"
 	"github.com/dexon-foundation/dexon/log"
 	"github.com/dexon-foundation/dexon/node"
 	"github.com/dexon-foundation/dexon/p2p"
@@ -236,14 +236,14 @@ func newFaucet(genesis *core.Genesis, port int, enodes []*discv5.Node, network u
 		cfg.SyncMode = downloader.LightSync
 		cfg.NetworkId = network
 		cfg.Genesis = genesis
-		return les.New(ctx, &cfg)
+		return lds.New(ctx, &cfg)
 	}); err != nil {
 		return nil, err
 	}
 	// Assemble the ethstats monitoring and reporting service'
 	if stats != "" {
 		if err := stack.Register(func(ctx *node.ServiceContext) (node.Service, error) {
-			var serv *les.LightEthereum
+			var serv *lds.LightEthereum
 			ctx.Service(&serv)
 			return ethstats.New(stats, nil, serv)
 		}); err != nil {

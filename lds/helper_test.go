@@ -17,7 +17,7 @@
 // This file contains some shares testing functionality, common to  multiple
 // different files and modules being tested.
 
-package les
+package lds
 
 import (
 	"crypto/rand"
@@ -35,7 +35,7 @@ import (
 	"github.com/dexon-foundation/dexon/eth"
 	"github.com/dexon-foundation/dexon/ethdb"
 	"github.com/dexon-foundation/dexon/event"
-	"github.com/dexon-foundation/dexon/les/flowcontrol"
+	"github.com/dexon-foundation/dexon/lds/flowcontrol"
 	"github.com/dexon-foundation/dexon/light"
 	"github.com/dexon-foundation/dexon/p2p"
 	"github.com/dexon-foundation/dexon/p2p/enode"

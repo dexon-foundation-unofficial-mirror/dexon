@@ -16,7 +16,7 @@
 
 // Package light implements on-demand retrieval capable state and chain objects
 // for the Ethereum Light Client.
-package les
+package lds
 
 import (
 	"encoding/binary"

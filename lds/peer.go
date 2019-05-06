@@ -15,7 +15,7 @@
 // along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
 
 // Package les implements the Light Ethereum Subprotocol.
-package les
+package lds
 
 import (
 	"errors"
@@ -27,7 +27,7 @@ import (
 	"github.com/dexon-foundation/dexon/common"
 	"github.com/dexon-foundation/dexon/core/types"
 	"github.com/dexon-foundation/dexon/eth"
-	"github.com/dexon-foundation/dexon/les/flowcontrol"
+	"github.com/dexon-foundation/dexon/lds/flowcontrol"
 	"github.com/dexon-foundation/dexon/light"
 	"github.com/dexon-foundation/dexon/p2p"
 	"github.com/dexon-foundation/dexon/rlp"

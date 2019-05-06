@@ -37,7 +37,7 @@ import (
 	"github.com/dexon-foundation/dexon/core/types"
 	"github.com/dexon-foundation/dexon/eth"
 	"github.com/dexon-foundation/dexon/event"
-	"github.com/dexon-foundation/dexon/les"
+	"github.com/dexon-foundation/dexon/lds"
 	"github.com/dexon-foundation/dexon/log"
 	"github.com/dexon-foundation/dexon/p2p"
 	"github.com/dexon-foundation/dexon/rpc"
@@ -71,7 +71,7 @@ type blockChain interface {
 type Service struct {
 	server *p2p.Server        // Peer-to-peer server to retrieve networking infos
 	eth    *eth.Ethereum      // Full Ethereum service if monitoring a full node
-	les    *les.LightEthereum // Light Ethereum service if monitoring a light node
+	les    *lds.LightEthereum // Light Ethereum service if monitoring a light node
 	engine consensus.Engine   // Consensus engine to retrieve variadic block fields
 
 	node string // Name of the node to display on the monitoring page
@@ -83,7 +83,7 @@ type Service struct {
 }
 
 // New returns a monitoring service ready for stats reporting.
-func New(url string, ethServ *eth.Ethereum, lesServ *les.LightEthereum) (*Service, error) {
+func New(url string, ethServ *eth.Ethereum, lesServ *lds.LightEthereum) (*Service, error) {
 	// Parse the netstats connection url
 	re := regexp.MustCompile("([^:@]*)(:([^@]*))?@(.+)")
 	parts := re.FindStringSubmatch(url)
@@ -377,8 +377,8 @@ func (s *Service) login(conn *websocket.Conn) error {
 		network = fmt.Sprintf("%d", info.(*eth.NodeInfo).Network)
 		protocol = fmt.Sprintf("eth/%d", eth.ProtocolVersions[0])
 	} else {
-		network = fmt.Sprintf("%d", infos.Protocols["les"].(*les.NodeInfo).Network)
-		protocol = fmt.Sprintf("les/%d", les.ClientProtocolVersions[0])
+		network = fmt.Sprintf("%d", infos.Protocols["les"].(*lds.NodeInfo).Network)
+		protocol = fmt.Sprintf("les/%d", lds.ClientProtocolVersions[0])
 	}
 	auth := &authMsg{
 		ID: s.node,

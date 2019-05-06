@@ -30,7 +30,7 @@ import (
 	"github.com/dexon-foundation/dexon/ethclient"
 	"github.com/dexon-foundation/dexon/ethstats"
 	"github.com/dexon-foundation/dexon/internal/debug"
-	"github.com/dexon-foundation/dexon/les"
+	"github.com/dexon-foundation/dexon/lds"
 	"github.com/dexon-foundation/dexon/node"
 	"github.com/dexon-foundation/dexon/p2p"
 	"github.com/dexon-foundation/dexon/p2p/nat"
@@ -161,14 +161,14 @@ func NewNode(datadir string, config *NodeConfig) (stack *Node, _ error) {
 		ethConf.NetworkId = uint64(config.EthereumNetworkID)
 		ethConf.DatabaseCache = config.EthereumDatabaseCache
 		if err := rawStack.Register(func(ctx *node.ServiceContext) (node.Service, error) {
-			return les.New(ctx, &ethConf)
+			return lds.New(ctx, &ethConf)
 		}); err != nil {
 			return nil, fmt.Errorf("ethereum init: %v", err)
 		}
 		// If netstats reporting is requested, do it
 		if config.EthereumNetStats != "" {
 			if err := rawStack.Register(func(ctx *node.ServiceContext) (node.Service, error) {
-				var lesServ *les.LightEthereum
+				var lesServ *lds.LightEthereum
 				ctx.Service(&lesServ)
 
 				return ethstats.New(config.EthereumNetStats, nil, lesServ)
