@@ -173,7 +173,7 @@ func (b *LdsApiBackend) Downloader() ethapi.Downloader {
 }
 
 func (b *LdsApiBackend) ProtocolVersion() int {
-	return b.dex.LesVersion() + 10000
+	return b.dex.LdsVersion() + 10000
 }
 
 func (b *LdsApiBackend) SuggestPrice(ctx context.Context) (*big.Int, error) {

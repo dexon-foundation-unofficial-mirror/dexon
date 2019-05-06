@@ -218,7 +218,7 @@ func (s *LightDexon) ResetWithGenesisBlock(gb *types.Block) {
 func (s *LightDexon) BlockChain() *light.LightChain { return s.blockchain }
 func (s *LightDexon) TxPool() *light.TxPool         { return s.txPool }
 func (s *LightDexon) Engine() consensus.Engine      { return s.engine }
-func (s *LightDexon) LesVersion() int               { return int(ClientProtocolVersions[0]) }
+func (s *LightDexon) LdsVersion() int               { return int(ClientProtocolVersions[0]) }
 func (s *LightDexon) Downloader() ethapi.Downloader { return s.protocolManager.downloader }
 func (s *LightDexon) EventMux() *event.TypeMux      { return s.eventMux }
 
