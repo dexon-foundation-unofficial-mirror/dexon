@@ -92,7 +92,7 @@ func checkExpr(n ast.ExprNode,
 		return checkModOperator(n, s, o, c, el, tr, ta)
 
 	case *ast.IsOperatorNode:
-		return n
+		return checkIsOperator(n, s, o, c, el, tr, ta)
 
 	case *ast.LikeOperatorNode:
 		return n
@@ -1157,6 +1157,9 @@ func checkParenOperator(n *ast.ParenOperatorNode,
 
 	r := n.GetTarget()
 	r = checkExpr(r, s, o, c, el, tr, ta)
+	if r == nil {
+		return nil
+	}
 	r.SetPosition(n.GetPosition())
 	r.SetLength(n.GetLength())
 	r.SetToken(n.GetToken())
@@ -2296,4 +2299,123 @@ func checkModOperator(n *ast.ModOperatorNode,
 			_, r := v1.QuoRem(v2, 0)
 			return r
 		})
+}
+
+func checkIsOperator(n *ast.IsOperatorNode,
+	s schema.Schema, o CheckOptions, c *schemaCache, el *errors.ErrorList,
+	tr schema.TableRef, ta typeAction) ast.ExprNode {
+
+	fn := "CheckIsOperator"
+	op := "binary operator IS"
+
+	object := n.GetObject()
+	object = checkExpr(object, s, o, c, el, tr, nil)
+	if object == nil {
+		return nil
+	}
+	subject := n.GetSubject()
+	subject = checkExpr(subject, s, o, c, el, tr, nil)
+	if subject == nil {
+		return nil
+	}
+	n.SetObject(object)
+	n.SetSubject(subject)
+	r := ast.ExprNode(n)
+
+	reportUnsupportedConstant := func(n ast.Valuer) {
+		el.Append(errors.Error{
+			Position: n.GetPosition(),
+			Length:   n.GetLength(),
+			Category: errors.ErrorCategorySemantic,
+			Code:     errors.ErrorCodeTypeError,
+			Severity: errors.ErrorSeverityError,
+			Prefix:   fn,
+			Message: fmt.Sprintf(
+				"the right-hand side of %s cannot be %s",
+				op, describeValueNodeType(n)),
+		}, nil)
+	}
+	reportNotConstant := func(n ast.ExprNode) {
+		el.Append(errors.Error{
+			Position: n.GetPosition(),
+			Length:   n.GetLength(),
+			Category: errors.ErrorCategorySemantic,
+			Code:     errors.ErrorCodeNonConstantExpression,
+			Severity: errors.ErrorSeverityError,
+			Prefix:   fn,
+			Message: fmt.Sprintf(
+				"the right-hand side of %s is not a constant", op),
+		}, nil)
+	}
+	var is ast.BoolValue
+	if sv, ok := subject.(ast.Valuer); ok {
+		switch sn := sv.(type) {
+		case *ast.BoolValueNode:
+			// IS TRUE / FALSE / UNKNOWN only works for bool.
+			if !validateBoolType(object.GetType(), el, object, fn, op) {
+				return nil
+			}
+			is = sn.V
+			op = "unary operator IS " + is.String()
+		case *ast.NullValueNode:
+			// IS NULL works for all types.
+			op = "unary operator IS NULL"
+		case *ast.AddressValueNode:
+			reportUnsupportedConstant(sv)
+			return nil
+		case *ast.IntegerValueNode:
+			reportUnsupportedConstant(sv)
+			return nil
+		case *ast.DecimalValueNode:
+			reportUnsupportedConstant(sv)
+			return nil
+		case *ast.BytesValueNode:
+			reportUnsupportedConstant(sv)
+			return nil
+		default:
+			panic(unknownValueNodeType(sv))
+		}
+	} else {
+		reportNotConstant(subject)
+		return nil
+	}
+	dt := n.GetType()
+
+	if object, ok := object.(ast.Valuer); ok {
+		var vo ast.BoolValue
+		if _, isBool := object.(*ast.BoolValueNode); isBool && !is.Valid() {
+			// Redirect IS NULL to IS UNKNOWN for bool.
+			is = ast.BoolValueUnknown
+		}
+		if is.Valid() {
+			// IS TRUE / FALSE / UNKNOWN
+			v, ok := extractBoolValue(object, el, fn, op)
+			if !ok {
+				return nil
+			}
+			vo = ast.NewBoolValueFromBool(v == is)
+		} else {
+			// IS NULL
+			_, isNull := object.(*ast.NullValueNode)
+			vo = ast.NewBoolValueFromBool(isNull)
+		}
+		node := &ast.BoolValueNode{}
+		node.SetPosition(n.GetPosition())
+		node.SetLength(n.GetLength())
+		node.SetToken(n.GetToken())
+		node.V = vo
+		r = node
+	}
+
+	switch a := ta.(type) {
+	case typeActionInferDefault:
+	case typeActionInferWithSize:
+	case typeActionInferWithMajor:
+	case typeActionAssign:
+		if !dt.Equal(a.dt) {
+			elAppendTypeErrorAssignDataType(el, n, fn, a.dt, dt)
+			return nil
+		}
+	}
+	return r
 }
