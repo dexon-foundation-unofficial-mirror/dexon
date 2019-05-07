@@ -2293,8 +2293,7 @@ func checkModOperator(n *ast.ModOperatorNode,
 
 	return checkArithmeticBinaryOperator(n, s, o, c, el, tr, ta, fn, op, true,
 		func(v1, v2 decimal.Decimal) decimal.Decimal {
-			// FIXME: This is wrong. It needs the correct precision to work.
-			_, r := v1.QuoRem(v2, MaxFractionalPartDigits)
+			_, r := v1.QuoRem(v2, 0)
 			return r
 		})
 }
