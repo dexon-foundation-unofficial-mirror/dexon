@@ -1043,7 +1043,7 @@ func (con *Consensus) Run() {
 	}
 	con.generateBlockRandomness(blocksWithoutRandomness)
 	// Sleep until dMoment come.
-	time.Sleep(con.dMoment.Sub(time.Now().UTC()))
+	time.Sleep(time.Until(con.dMoment))
 	// Take some time to bootstrap.
 	time.Sleep(3 * time.Second)
 	con.waitGroup.Add(1)
@@ -1446,7 +1446,7 @@ func (con *Consensus) deliveryGuard() {
 	defer con.waitGroup.Done()
 	select {
 	case <-con.ctx.Done():
-	case <-time.After(con.dMoment.Sub(time.Now())):
+	case <-time.After(time.Until(con.dMoment)):
 	}
 	// Node takes time to start.
 	select {

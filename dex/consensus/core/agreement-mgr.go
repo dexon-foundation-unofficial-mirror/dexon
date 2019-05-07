@@ -600,7 +600,7 @@ func (mgr *agreementMgr) baRoutineForOneRound(
 		if err != nil {
 			return
 		}
-		time.Sleep(nextTime.Sub(time.Now()))
+		time.Sleep(time.Until(nextTime))
 		setting.ticker.Restart()
 		agr.restart(setting.dkgSet, setting.threshold, nextPos, leader, setting.crs)
 		return
