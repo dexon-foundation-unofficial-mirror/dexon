@@ -102,16 +102,14 @@ func (s *TransportTestSuite) baseTest(
 		defer wg.Done()
 		server.peerBlocks = make(map[types.NodeID]*types.Block)
 		for {
-			select {
-			case e := <-server.recv:
-				req.Equal(e.PeerType, TransportPeer)
-				switch v := e.Msg.(type) {
-				case *types.Block:
-					req.Equal(v.ProposerID, e.From)
-					server.peerBlocks[v.ProposerID] = v
-					// Echo the block back
-					server.trans.Send(v.ProposerID, v)
-				}
+			e := <-server.recv
+			req.Equal(e.PeerType, TransportPeer)
+			switch v := e.Msg.(type) {
+			case *types.Block:
+				req.Equal(v.ProposerID, e.From)
+				server.peerBlocks[v.ProposerID] = v
+				// Echo the block back
+				server.trans.Send(v.ProposerID, v)
 			}
 			// Upon receiving blocks from all peers, stop.
 			if len(server.peerBlocks) == len(peers) {
@@ -124,19 +122,17 @@ func (s *TransportTestSuite) baseTest(
 		peer.blocks = make(map[types.NodeID]*types.Block)
 		peer.blocksReceiveTime = make(map[common.Hash]time.Time)
 		for {
-			select {
-			case e := <-peer.recv:
-				switch v := e.Msg.(type) {
-				case *types.Block:
-					if v.ProposerID == peer.nID {
-						req.Equal(e.PeerType, TransportPeerServer)
-						peer.echoBlock = v
-					} else {
-						req.Equal(e.PeerType, TransportPeer)
-						req.Equal(e.From, v.ProposerID)
-						peer.blocks[v.ProposerID] = v
-						peer.blocksReceiveTime[v.Hash] = time.Now()
-					}
+			e := <-peer.recv
+			switch v := e.Msg.(type) {
+			case *types.Block:
+				if v.ProposerID == peer.nID {
+					req.Equal(e.PeerType, TransportPeerServer)
+					peer.echoBlock = v
+				} else {
+					req.Equal(e.PeerType, TransportPeer)
+					req.Equal(e.From, v.ProposerID)
+					peer.blocks[v.ProposerID] = v
+					peer.blocksReceiveTime[v.Hash] = time.Now()
 				}
 			}
 			// Upon receiving blocks from all other peers, and echoed from

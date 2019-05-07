@@ -1049,9 +1049,7 @@ func (con *Consensus) Run() {
 	con.waitGroup.Add(1)
 	go con.deliveryGuard()
 	// Block until done.
-	select {
-	case <-con.ctx.Done():
-	}
+	<-con.ctx.Done()
 }
 
 func (con *Consensus) generateBlockRandomness(blocks []*types.Block) {
