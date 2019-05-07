@@ -335,9 +335,19 @@ func doTest(cmdline []string) {
 	packages = build.ExpandPackagesNoVendor(packages)
 
 	packageForLegacyEvm := []string{}
+	packageForCoreIntegration := []string{}
 	for i := 0; i < len(packages); i++ {
+		toRemove := false
 		if strings.HasSuffix(packages[i], "dexon/tests") {
 			packageForLegacyEvm = append(packageForLegacyEvm, packages[i])
+			toRemove = true
+		}
+		if strings.HasSuffix(packages[i], "integration_test") {
+			packageForCoreIntegration = append(
+				packageForCoreIntegration, packages[i])
+			toRemove = true
+		}
+		if toRemove {
 			packages = append(packages[:i], packages[i+1:]...)
 			i--
 		}
@@ -363,6 +373,14 @@ func doTest(cmdline []string) {
 	gotestForLegacyEvm.Args = append(gotestForLegacyEvm.Args, packageForLegacyEvm...)
 	gotestForLegacyEvm.Args = append(gotestForLegacyEvm.Args, "-legacy-evm=true")
 	build.MustRun(gotestForLegacyEvm)
+
+	gotestForCoreIntegration := goTool("test", buildFlags(env, false)...)
+	gotestForCoreIntegration.Args = append(gotestForCoreIntegration.Args, "-timeout", "30m")
+	if *coverage {
+		gotestForCoreIntegration.Args = append(gotestForCoreIntegration.Args, "-covermode=atomic", "-cover")
+	}
+	gotestForCoreIntegration.Args = append(gotestForCoreIntegration.Args, packageForCoreIntegration...)
+	build.MustRun(gotestForCoreIntegration)
 }
 
 // runs gometalinter on requested packages
