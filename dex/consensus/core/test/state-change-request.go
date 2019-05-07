@@ -194,8 +194,7 @@ func (req *StateChangeRequest) String() (ret string) {
 	case StateChangeNotarySetSize:
 		ret += fmt.Sprintf("%v", req.Payload.(uint32))
 	case StateAddNode:
-		ret += fmt.Sprintf(
-			"%s", types.NewNodeID(req.Payload.(crypto.PublicKey)).String()[:6])
+		ret += types.NewNodeID(req.Payload.(crypto.PublicKey)).String()[:6]
 	default:
 		panic(fmt.Errorf(
 			"attempting to dump unknown type of state change request: %v",
