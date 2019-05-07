@@ -531,9 +531,7 @@ func (s *State) Clone() (copied *State) {
 			copied.dkgSuccesses[round][nID] = CloneDKGSuccess(success)
 		}
 	}
-	for _, crs := range s.crs {
-		copied.crs = append(copied.crs, crs)
-	}
+	copied.crs = append(copied.crs, s.crs...)
 	copied.dkgResetCount = make(map[uint64]uint64, len(s.dkgResetCount))
 	for round, count := range s.dkgResetCount {
 		copied.dkgResetCount[round] = count

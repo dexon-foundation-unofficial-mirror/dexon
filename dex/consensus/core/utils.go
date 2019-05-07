@@ -104,9 +104,7 @@ func getMedianTime(timestamps []time.Time) (t time.Time, err error) {
 		return
 	}
 	tscopy := make([]time.Time, 0, len(timestamps))
-	for _, ts := range timestamps {
-		tscopy = append(tscopy, ts)
-	}
+	tscopy = append(tscopy, timestamps...)
 	sort.Sort(common.ByTime(tscopy))
 	if len(tscopy)%2 == 0 {
 		t1 := tscopy[len(tscopy)/2-1]

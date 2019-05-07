@@ -64,11 +64,7 @@ type SimpleLogger struct{}
 
 // composeVargs makes (msg, ctx...) could be pass to log.Println
 func composeVargs(msg string, ctxs []interface{}) []interface{} {
-	args := []interface{}{msg}
-	for _, c := range ctxs {
-		args = append(args, c)
-	}
-	return args
+	return append([]interface{}{msg}, ctxs...)
 }
 
 // Trace implements Logger interface.
