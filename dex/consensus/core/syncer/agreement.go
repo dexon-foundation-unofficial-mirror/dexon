@@ -79,25 +79,18 @@ func newAgreement(chainTip uint64,
 // routine explicitly in the caller.
 func (a *agreement) run() {
 	defer a.ctxCancel()
-	for {
-		select {
-		case val, ok := <-a.inputChan:
-			if !ok {
-				// InputChan is closed by network when network ends.
-				return
+	for val := range a.inputChan {
+		switch v := val.(type) {
+		case *types.Block:
+			if v.Position.Round >= core.DKGDelayRound && v.IsFinalized() {
+				a.processFinalizedBlock(v)
+			} else {
+				a.processBlock(v)
 			}
-			switch v := val.(type) {
-			case *types.Block:
-				if v.Position.Round >= core.DKGDelayRound && v.IsFinalized() {
-					a.processFinalizedBlock(v)
-				} else {
-					a.processBlock(v)
-				}
-			case *types.AgreementResult:
-				a.processAgreementResult(v)
-			case uint64:
-				a.processNewCRS(v)
-			}
+		case *types.AgreementResult:
+			a.processAgreementResult(v)
+		case uint64:
+			a.processNewCRS(v)
 		}
 	}
 }
