@@ -22,13 +22,11 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"sync"
 	"testing"
 	"time"
 
 	"github.com/dexon-foundation/dexon/dex/consensus/common"
 	"github.com/dexon-foundation/dexon/dex/consensus/core"
-	"github.com/dexon-foundation/dexon/dex/consensus/core/crypto"
 	"github.com/dexon-foundation/dexon/dex/consensus/core/db"
 	"github.com/dexon-foundation/dexon/dex/consensus/core/syncer"
 	"github.com/dexon-foundation/dexon/dex/consensus/core/test"
@@ -69,17 +67,6 @@ func govHandlerGen(
 
 }
 
-type node struct {
-	ID      types.NodeID
-	con     *core.Consensus
-	app     *test.App
-	gov     *test.Governance
-	rEvt    *utils.RoundEvent
-	db      db.Database
-	network *test.Network
-	logger  common.Logger
-}
-
 func prohibitDKG(gov *test.Governance) {
 	gov.Prohibit(test.StateAddDKGMasterPublicKey)
 	gov.Prohibit(test.StateAddDKGFinal)
@@ -95,78 +82,6 @@ func unprohibitDKG(gov *test.Governance) {
 	gov.Unprohibit(test.StateAddDKGMasterPublicKey)
 	gov.Unprohibit(test.StateAddDKGFinal)
 	gov.Unprohibit(test.StateAddDKGComplaint)
-}
-
-func (s *ConsensusTestSuite) setupNodes(
-	dMoment time.Time,
-	prvKeys []crypto.PrivateKey,
-	seedGov *test.Governance) map[types.NodeID]*node {
-	var (
-		wg        sync.WaitGroup
-		initRound uint64
-	)
-	// Setup peer server at transport layer.
-	server := test.NewFakeTransportServer()
-	serverChannel, err := server.Host()
-	s.Require().NoError(err)
-	// setup nodes.
-	nodes := make(map[types.NodeID]*node)
-	wg.Add(len(prvKeys))
-	for i, k := range prvKeys {
-		dbInst, err := db.NewMemBackedDB()
-		s.Require().NoError(err)
-		// Prepare essential modules: app, gov, db.
-		networkModule := test.NewNetwork(k.PublicKey(), test.NetworkConfig{
-			Type:          test.NetworkTypeFake,
-			DirectLatency: &test.FixedLatencyModel{},
-			GossipLatency: &test.FixedLatencyModel{},
-			Marshaller:    test.NewDefaultMarshaller(nil)},
-		)
-		gov := seedGov.Clone()
-		gov.SwitchToRemoteMode(networkModule)
-		gov.NotifyRound(initRound, types.GenesisHeight)
-		networkModule.AttachNodeSetCache(utils.NewNodeSetCache(gov))
-		f, err := os.Create(fmt.Sprintf("log.%d.log", i))
-		if err != nil {
-			panic(err)
-		}
-		logger := common.NewCustomLogger(log.New(f, "", log.LstdFlags|log.Lmicroseconds))
-		rEvt, err := utils.NewRoundEvent(context.Background(), gov, logger,
-			types.Position{Height: types.GenesisHeight}, core.ConfigRoundShift)
-		s.Require().NoError(err)
-		nID := types.NewNodeID(k.PublicKey())
-		nodes[nID] = &node{
-			ID:      nID,
-			app:     test.NewApp(initRound+1, gov, rEvt),
-			gov:     gov,
-			db:      dbInst,
-			logger:  logger,
-			rEvt:    rEvt,
-			network: networkModule,
-		}
-		go func() {
-			defer wg.Done()
-			s.Require().NoError(networkModule.Setup(serverChannel))
-			go networkModule.Run()
-		}()
-	}
-	// Make sure transport layer is ready.
-	s.Require().NoError(server.WaitForPeers(uint32(len(prvKeys))))
-	wg.Wait()
-	for _, k := range prvKeys {
-		node := nodes[types.NewNodeID(k.PublicKey())]
-		// Now is the consensus module.
-		node.con = core.NewConsensus(
-			dMoment,
-			node.app,
-			node.gov,
-			node.db,
-			node.network,
-			k,
-			node.logger,
-		)
-	}
-	return nodes
 }
 
 func (s *ConsensusTestSuite) verifyNodes(nodes map[types.NodeID]*node) {
@@ -284,7 +199,8 @@ func (s *ConsensusTestSuite) TestSimple() {
 	req.NoError(seedGov.State().RequestChange(
 		test.StateChangeRoundLength, uint64(100)))
 	// A short round interval.
-	nodes := s.setupNodes(dMoment, prvKeys, seedGov)
+	nodes, err := setupNodes(dMoment, prvKeys, seedGov)
+	s.Require().NoError(err)
 	for _, n := range nodes {
 		go n.con.Run()
 		defer n.con.Stop()
@@ -348,7 +264,8 @@ func (s *ConsensusTestSuite) TestSetSizeChange() {
 		test.StateChangeNotarySetSize, uint32(4)))
 	seedGov.CatchUpWithRound(3)
 	// Setup nodes.
-	nodes := s.setupNodes(dMoment, prvKeys, seedGov)
+	nodes, err := setupNodes(dMoment, prvKeys, seedGov)
+	s.Require().NoError(err)
 	// Pick master node, and register changes on it.
 	var pickedNode *node
 	for _, pickedNode = range nodes {
@@ -415,7 +332,8 @@ func (s *ConsensusTestSuite) TestSync() {
 	seedGov.CatchUpWithRound(0)
 	seedGov.CatchUpWithRound(1)
 	// A short round interval.
-	nodes := s.setupNodes(dMoment, prvKeys, seedGov)
+	nodes, err := setupNodes(dMoment, prvKeys, seedGov)
+	s.Require().NoError(err)
 	// Choose the first node as "syncNode" that its consensus' Run() is called
 	// later.
 	syncNode := nodes[types.NewNodeID(pubKeys[0])]
@@ -584,7 +502,8 @@ func (s *ConsensusTestSuite) TestForceSync() {
 	seedGov.CatchUpWithRound(0)
 	seedGov.CatchUpWithRound(1)
 	// A short round interval.
-	nodes := s.setupNodes(dMoment, prvKeys, seedGov)
+	nodes, err := setupNodes(dMoment, prvKeys, seedGov)
+	s.Require().NoError(err)
 	for _, n := range nodes {
 		go n.con.Run()
 	}
@@ -730,7 +649,8 @@ func (s *ConsensusTestSuite) TestResetDKG() {
 		test.StateChangeRoundLength, uint64(100)))
 	req.NoError(seedGov.State().RequestChange(
 		test.StateChangeNotarySetSize, uint32(4)))
-	nodes := s.setupNodes(dMoment, prvKeys, seedGov)
+	nodes, err := setupNodes(dMoment, prvKeys, seedGov)
+	s.Require().NoError(err)
 	for _, n := range nodes {
 		n.rEvt.Register(purgeHandlerGen(n.network))
 		// Round Height reference table:
