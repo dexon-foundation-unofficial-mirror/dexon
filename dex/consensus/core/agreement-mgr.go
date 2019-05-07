@@ -195,7 +195,6 @@ func (mgr *agreementMgr) prepare() {
 				"round", round, "signer", signer != nil, "npks", npk != nil)
 		}
 	}
-	return
 }
 
 func (mgr *agreementMgr) run() {

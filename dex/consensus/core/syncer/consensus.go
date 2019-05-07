@@ -455,7 +455,6 @@ func (con *Consensus) stopBuffering() {
 	con.logger.Trace("Stop syncer agreement modules")
 	con.stopAgreement()
 	con.logger.Trace("Syncer stopped")
-	return
 }
 
 // isEmptyBlock checks if a block is an empty block by both its hash and parent
