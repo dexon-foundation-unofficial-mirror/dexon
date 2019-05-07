@@ -164,10 +164,8 @@ notes: \
 #### Type ID allocation (2 bytes)
 |          | 1st byte | 2nd byte  | Number of types |
 |-         |-         | -         | -               |
-| unknown  | 0x00     | 0x00      | 1               |
+| pending  | 0x00     | 0x00      | 1               |
 | null     | 0x01     | 0x00      | 1               |
-| *        | 0x01     | 0x01      | 1               |
-| default  | 0x01     | 0x02      | 1               |
 | bool     | 0x02     | 0x00      | 1               |
 | address  | 0x03     | 0x00      | 1               |
 | int      | 0x04     | 0x00~0x1f | 32              |
@@ -419,7 +417,7 @@ Value
 type IndexEntry struct {
 	// Slot 1.
 	Length                      uint64
-	IndexToIndexValuesOffset uint64
+	IndexToIndexValuesOffset    uint64
 	ForeignKeyReferenceCount    uint64
 	<unused>                    uint64
 	// Slot 2.
@@ -432,6 +430,8 @@ type IndexEntry struct {
 	...
 }
 ```
+
+#### (TODO) Row ID reverse index
 
 #### Sequence (auto increment)
 Key
@@ -473,7 +473,7 @@ PathKey(["tables", uint8(table_idx), "writers"])
 
 Value
 ```golang
-type PossibleValues struct {
+type IndexValues struct {
 	// Slot 1.
 	Length          uint64
 	<unused>        uint64
@@ -498,7 +498,7 @@ Value
 ```golang
 type TableWriter struct {
 	// Slot 1.
-	IndexToPossibleValuesOffset    uint64
+	IndexToIndexValuesOffset       uint64
 	<unused>                       uint64
 	<unused>                       uint64
 	<unused>                       uint64
@@ -646,7 +646,7 @@ const (
 	// REPEATPK(table_id) = [1, 2, 3, 5, 6, 7, ...]
 	REPEATIDX
 	// Scan given index value(s)
-	// REPEATIDX(table_id, name_idx, idxv) res
+	// REPEATIDX([table_id, name_idx], idxv) res
 	// res = [id2, id4, id5, id6]
 	// REPEATIDX(
 	//  [table_id, name_idx],
@@ -654,7 +654,7 @@ const (
 	// ) = [5, 6, 7, 10, 11, ... ]
 	REPEATIDXV
 	// Get possible values from index value meta
-	// REPEATIDXV(table_id, name_idx) res
+	// REPEATIDXV([table_id, name_idx]) res
 	// res = [val1, val2, val3, ...]
 	// REPEATIDXV(
 	//   [table_id, name_idx]
@@ -761,21 +761,18 @@ const (
 *   SELECT * FROM a
     *   REPEATPK(a) t1
     *   LOAD(a, t1, [0, 1, 2, 3, 4, 5]) t2
-    *   ZIP(t2)
 *   SELECT f1, f3, f5 FROM a WHERE f1=val (index hit)
     *   REPEATIDXV(a_f1_idx) t1
-    *   EQ(t1, val) t3
-    *   FILTER(t1, t3) t4
-    *   REPEATIDX(a_f1_idx, t4) t5
-    *   LOAD(a, t5, [1, 3, 5]) t6
-    *   ZIP(t6)
+    *   EQ(t1, val) t2
+    *   FILTER(t1, t2) t3
+    *   REPEATIDX(a_f1_idx, t3) t4
+    *   LOAD(a, t4, [1, 3, 5]) t5
 *   SELECT f1, f3, f5 FROM a WHERE f1 > val (index scan)
     *   REPEATIDXV(a_f1_idx) t1
     *   GT(t1, val) t2
     *   FILTER(t1, t2) t3
     *   REPEATIDX(a_f1_idx, t3) t4
     *   LOAD(a, t4, [1, 3, 5]) t5
-    *   ZIP(t5)
 *   SELECT f1 > f2, f5 FROM a WHERE f3 > 10 (field operation)
     *   REPEATPK(a) t1
     *   LOAD(a, t1, [3]) t2
