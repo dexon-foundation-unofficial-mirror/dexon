@@ -176,13 +176,13 @@ func (req *StateChangeRequest) String() (ret string) {
 		ret += fmt.Sprintf(
 			"Round:%v CRS:%s", crsReq.Round, crsReq.CRS.String()[:6])
 	case StateAddDKGComplaint:
-		ret += fmt.Sprintf("%s", req.Payload.(*typesDKG.Complaint))
+		ret += req.Payload.(*typesDKG.Complaint).String()
 	case StateAddDKGMasterPublicKey:
-		ret += fmt.Sprintf("%s", req.Payload.(*typesDKG.MasterPublicKey))
+		ret += req.Payload.(*typesDKG.MasterPublicKey).String()
 	case StateAddDKGMPKReady:
-		ret += fmt.Sprintf("%s", req.Payload.(*typesDKG.MPKReady))
+		ret += req.Payload.(*typesDKG.MPKReady).String()
 	case StateAddDKGFinal:
-		ret += fmt.Sprintf("%s", req.Payload.(*typesDKG.Finalize))
+		ret += req.Payload.(*typesDKG.Finalize).String()
 	case StateChangeLambdaBA:
 		ret += fmt.Sprintf("%v", time.Duration(req.Payload.(uint64)))
 	case StateChangeLambdaDKG:
