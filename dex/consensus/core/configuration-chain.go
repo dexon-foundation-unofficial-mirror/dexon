@@ -151,7 +151,7 @@ func (cc *configurationChain) abortDKGNoLock(
 	// Wait for current running DKG protocol aborting.
 	for {
 		cc.dkgLock.Lock()
-		if cc.dkgRunning == false {
+		if !cc.dkgRunning {
 			cc.dkg = nil
 			break
 		}
