@@ -156,7 +156,7 @@ func VerifyCRSSignature(
 	block *types.Block, crs common.Hash, npks *typesDKG.NodePublicKeys) bool {
 	hash := hashCRS(block, crs)
 	if block.Position.Round < dkgDelayRound {
-		return bytes.Compare(block.CRSSignature.Signature[:], hash[:]) == 0
+		return bytes.Equal(block.CRSSignature.Signature[:], hash[:])
 	}
 	if npks == nil {
 		return false

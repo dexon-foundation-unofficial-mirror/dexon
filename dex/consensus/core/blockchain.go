@@ -505,7 +505,7 @@ func (bc *blockChain) purgeConfig() {
 func (bc *blockChain) verifyRandomness(
 	blockHash common.Hash, round uint64, randomness []byte) (bool, error) {
 	if round < DKGDelayRound {
-		return bytes.Compare(randomness, NoRand) == 0, nil
+		return bytes.Equal(randomness, NoRand), nil
 	}
 	v, ok, err := bc.vGetter.UpdateAndGet(round)
 	if err != nil {

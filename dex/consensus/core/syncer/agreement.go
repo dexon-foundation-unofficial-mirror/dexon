@@ -203,7 +203,7 @@ func (a *agreement) processAgreementResult(r *types.AgreementResult) {
 		}
 	} else {
 		// Special case for rounds before DKGDelayRound.
-		if bytes.Compare(r.Randomness, core.NoRand) != 0 {
+		if !bytes.Equal(r.Randomness, core.NoRand) {
 			a.logger.Error("incorrect agreement result randomness", "result", r)
 			return
 		}

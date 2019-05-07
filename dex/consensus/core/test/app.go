@@ -293,8 +293,8 @@ func (app *App) Compare(other *App) (err error) {
 					err = ErrMismatchBlockHashSequence
 					return
 				}
-				if bytes.Compare(app.Delivered[h].Rand,
-					other.Delivered[h].Rand) != 0 {
+				if !bytes.Equal(
+					app.Delivered[h].Rand, other.Delivered[h].Rand) {
 					err = ErrMismatchRandomness
 					return
 				}

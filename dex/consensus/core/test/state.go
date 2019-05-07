@@ -303,7 +303,7 @@ func (s *State) Equal(other *State) error {
 		if !exists {
 			return ErrStateNodeSetNotEqual
 		}
-		if bytes.Compare(key.Bytes(), otherKey.Bytes()) != 0 {
+		if !bytes.Equal(key.Bytes(), otherKey.Bytes()) {
 			return ErrStateNodeSetNotEqual
 		}
 	}

@@ -59,9 +59,8 @@ func (p *PrivateShare) Equal(other *PrivateShare) bool {
 		p.Round == other.Round &&
 		p.Reset == other.Reset &&
 		p.Signature.Type == other.Signature.Type &&
-		bytes.Compare(p.Signature.Signature, other.Signature.Signature) == 0 &&
-		bytes.Compare(
-			p.PrivateShare.Bytes(), other.PrivateShare.Bytes()) == 0
+		bytes.Equal(p.Signature.Signature, other.Signature.Signature) &&
+		bytes.Equal(p.PrivateShare.Bytes(), other.PrivateShare.Bytes())
 }
 
 // MasterPublicKey decrtibe a master public key in DKG protocol.
@@ -89,7 +88,7 @@ func (d *MasterPublicKey) Equal(other *MasterPublicKey) bool {
 		d.DKGID.GetHexString() == other.DKGID.GetHexString() &&
 		d.PublicKeyShares.Equal(&other.PublicKeyShares) &&
 		d.Signature.Type == other.Signature.Type &&
-		bytes.Compare(d.Signature.Signature, other.Signature.Signature) == 0
+		bytes.Equal(d.Signature.Signature, other.Signature.Signature)
 }
 
 type rlpMasterPublicKey struct {
@@ -176,7 +175,7 @@ func (c *Complaint) Equal(other *Complaint) bool {
 		c.Reset == other.Reset &&
 		c.PrivateShare.Equal(&other.PrivateShare) &&
 		c.Signature.Type == other.Signature.Type &&
-		bytes.Compare(c.Signature.Signature, other.Signature.Signature) == 0
+		bytes.Equal(c.Signature.Signature, other.Signature.Signature)
 }
 
 type rlpComplaint struct {
@@ -277,7 +276,7 @@ func (ready *MPKReady) Equal(other *MPKReady) bool {
 		ready.Round == other.Round &&
 		ready.Reset == other.Reset &&
 		ready.Signature.Type == other.Signature.Type &&
-		bytes.Compare(ready.Signature.Signature, other.Signature.Signature) == 0
+		bytes.Equal(ready.Signature.Signature, other.Signature.Signature)
 }
 
 // Finalize describe a dkg finalize message in DKG protocol.
@@ -301,7 +300,7 @@ func (final *Finalize) Equal(other *Finalize) bool {
 		final.Round == other.Round &&
 		final.Reset == other.Reset &&
 		final.Signature.Type == other.Signature.Type &&
-		bytes.Compare(final.Signature.Signature, other.Signature.Signature) == 0
+		bytes.Equal(final.Signature.Signature, other.Signature.Signature)
 }
 
 // Success describe a dkg success message in DKG protocol.
@@ -325,7 +324,7 @@ func (s *Success) Equal(other *Success) bool {
 		s.Round == other.Round &&
 		s.Reset == other.Reset &&
 		s.Signature.Type == other.Signature.Type &&
-		bytes.Compare(s.Signature.Signature, other.Signature.Signature) == 0
+		bytes.Equal(s.Signature.Signature, other.Signature.Signature)
 }
 
 // GroupPublicKey is the result of DKG protocol.
