@@ -1090,7 +1090,7 @@ func checkNotOperator(n *ast.NotOperatorNode,
 
 	r := checkChildrenForUnaryOperator(n, s, o, c, el, tr)
 	if r == nil {
-		return r
+		return nil
 	}
 
 	target := n.GetTarget()
@@ -1135,18 +1135,26 @@ func checkChildrenForBinaryOperator(n ast.BinaryOperator,
 	s schema.Schema, o CheckOptions, c *schemaCache, el *errors.ErrorList,
 	tr schema.TableRef) ast.ExprNode {
 
+	hasError := false
+
 	object := n.GetObject()
 	object = checkExpr(object, s, o, c, el, tr, nil)
-	if object == nil {
-		return nil
+	if object != nil {
+		n.SetObject(object)
+	} else {
+		hasError = true
 	}
 	subject := n.GetSubject()
 	subject = checkExpr(subject, s, o, c, el, tr, nil)
-	if subject == nil {
+	if subject != nil {
+		n.SetSubject(subject)
+	} else {
+		hasError = true
+	}
+
+	if hasError {
 		return nil
 	}
-	n.SetObject(object)
-	n.SetSubject(subject)
 	return n
 }
 
@@ -2188,7 +2196,7 @@ func checkIsOperator(n *ast.IsOperatorNode,
 
 	r := checkChildrenForBinaryOperator(n, s, o, c, el, tr)
 	if r == nil {
-		return r
+		return nil
 	}
 
 	object := n.GetObject()
@@ -2277,6 +2285,149 @@ func checkIsOperator(n *ast.IsOperatorNode,
 		node.SetToken(n.GetToken())
 		node.V = vo
 		r = node
+	}
+
+	return verifyTypeAction(r, fn, dt, el, ta)
+}
+
+func checkLikeOperator(n *ast.LikeOperatorNode,
+	s schema.Schema, o CheckOptions, c *schemaCache, el *errors.ErrorList,
+	tr schema.TableRef, ta typeAction) ast.ExprNode {
+
+	fn := "CheckLikeOperator"
+	op := "operator LIKE"
+
+	BYTES := ast.ComposeDataType(
+		ast.DataTypeMajorDynamicBytes, ast.DataTypeMinorDontCare)
+	BYTES1 := ast.ComposeDataType(
+		ast.DataTypeMajorFixedBytes, ast.DataTypeMinor(1-1))
+
+	assignBYTES := newTypeActionAssign(BYTES)
+	assignBYTES1 := newTypeActionAssign(BYTES1)
+
+	hasError := false
+
+	object := n.GetObject()
+	object = checkExpr(object, s, o, c, el, tr, assignBYTES)
+	if object != nil {
+		n.SetObject(object)
+	} else {
+		hasError = true
+	}
+	pattern := n.GetSubject()
+	pattern = checkExpr(pattern, s, o, c, el, tr, assignBYTES)
+	if pattern != nil {
+		n.SetSubject(pattern)
+	} else {
+		hasError = true
+	}
+	escape := n.Escape
+	if escape != nil {
+		// FIXME: how can we report ErrorCodeMultipleEscapeByte?
+		escape = checkExpr(escape, s, o, c, el, tr, assignBYTES1)
+		if escape != nil {
+			n.Escape = escape
+		} else {
+			hasError = true
+		}
+	}
+
+	if hasError {
+		return nil
+	}
+	r := ast.ExprNode(n)
+	dt := n.GetType()
+
+	extractOneArgument := func(n ast.Valuer) ([]byte, bool, bool) {
+		v, status := extractBytesValue(n, el, fn, op)
+		switch status {
+		case extractBytesValueStatusError:
+			return nil, false, false
+		case extractBytesValueStatusBytes:
+			return v, false, true
+		case extractBytesValueStatusNullWithType:
+			return nil, true, true
+		case extractBytesValueStatusNullWithoutType:
+			panic("all children must have types")
+		default:
+			panic(fmt.Sprintf("unknown status %d", status))
+		}
+	}
+	extractAllArguments := func(object, pattern, escape ast.Valuer) (
+		[]byte, []byte, byte, bool, bool) {
+
+		var vobj []byte
+		var vpat []byte
+		var vesc byte
+
+		null := false
+		if v, n, ok := extractOneArgument(object); ok {
+			vobj = v
+			null = null || n
+		} else {
+			return nil, nil, 0, false, false
+		}
+		if v, n, ok := extractOneArgument(pattern); ok {
+			vpat = v
+			null = null || n
+		} else {
+			return nil, nil, 0, false, false
+		}
+		if escape != nil {
+			if v, n, ok := extractOneArgument(escape); !ok {
+				if !n && len(v) != 1 {
+					panic("escape byte must be exactly one byte")
+				}
+				vesc = v[0]
+				null = null || n
+			} else {
+				return nil, nil, 0, false, false
+			}
+		}
+		return vobj, vpat, vesc, null, true
+	}
+	calc := func(vobj, vpat []byte, vesc byte, hasEscape bool) ast.BoolValue {
+		// TODO: implement it
+		return ast.BoolValueFalse
+	}
+	if object, ok := object.(ast.Valuer); ok {
+		if pattern, ok := pattern.(ast.Valuer); ok {
+			var vobj []byte
+			var vpat []byte
+			var vesc byte
+			var null bool
+
+			canFold := true
+			hasEscape := escape != nil
+			if hasEscape {
+				if escape, ok := escape.(ast.Valuer); ok {
+					if vobj, vpat, vesc, null, ok =
+						extractAllArguments(object, pattern, escape); !ok {
+						return nil
+					}
+				} else {
+					canFold = false
+				}
+			} else {
+				if vobj, vpat, vesc, null, ok =
+					extractAllArguments(object, pattern, nil); !ok {
+					return nil
+				}
+			}
+
+			if canFold {
+				node := &ast.BoolValueNode{}
+				if null {
+					node.V = ast.BoolValueUnknown
+				} else {
+					node.V = calc(vobj, vpat, vesc, hasEscape)
+				}
+				node.SetPosition(n.GetPosition())
+				node.SetLength(n.GetLength())
+				node.SetToken(n.GetToken())
+				r = node
+			}
+		}
 	}
 
 	return verifyTypeAction(r, fn, dt, el, ta)
