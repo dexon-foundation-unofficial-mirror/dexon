@@ -1564,9 +1564,11 @@ func opCast(ctx *common.Context, ops, registers []*Operand, output uint) (err er
 
 	op2 := &Operand{Meta: ops[1].cloneMeta(), Data: make([]Tuple, len(op.Data))}
 	for i := 0; i < len(op.Data); i++ {
-		op2.Data[i] = append(Tuple{}, op.Data[i]...)
+		op2.Data[i] = make(Tuple, len(op.Data[i]))
 
 		for j, dType := range dTypes {
+			op2.Data[i][j] = op.Data[i][j].clone()
+
 			if op.Meta[j] == dType {
 				continue
 			}

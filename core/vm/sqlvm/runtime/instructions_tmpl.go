@@ -243,6 +243,8 @@ const binOpTmplStr = `
 package runtime
 
 import (
+	"testing"
+
 	"github.com/dexon-foundation/decimal"
 
 	"github.com/dexon-foundation/dexon/core/vm/sqlvm/ast"
@@ -250,8 +252,7 @@ import (
 )
 
 {{range .BinOpCollections}}
-func (s *instructionSuite) Test{{.TestName}}() {
-	testcases := []opTestcase{ {{range .Cases}}
+var testcases{{.TestName}} = []opTestcase{ {{range .Cases}}
 		{
 			"{{.Name}}",
 			Instruction{
@@ -282,7 +283,12 @@ func (s *instructionSuite) Test{{.TestName}}() {
 		},{{end}}
 	}
 
-	s.run(testcases, {{.OpFunc}})
+func (s *instructionSuite) Test{{.TestName}}() {
+	s.run(testcases{{.TestName}}, {{.OpFunc}})
+}
+
+func Benchmark{{.TestName}}(b *testing.B) {
+	runBench(b, testcases{{.TestName}}, {{.OpFunc}})
 }
 {{end}}
 `

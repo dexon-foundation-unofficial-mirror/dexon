@@ -500,6 +500,15 @@ func loadRegister(input, registers []*Operand) {
 	}
 }
 
+func setRegister(input, registers []*Operand) {
+	for i, j := 0, 0; i < len(input); i++ {
+		if !input[i].IsImmediate {
+			registers[j] = input[i]
+			j++
+		}
+	}
+}
+
 type opTestcase struct {
 	Name   string
 	In     Instruction
@@ -515,12 +524,8 @@ func (s *instructionSuite) run(testcases []opTestcase, opfunc OpFunction) {
 	for idx, c := range testcases {
 		registers := make([]*Operand, len(c.In.Input))
 
-		for i, j := 0, 0; i < len(c.In.Input); i++ {
-			if !c.In.Input[i].IsImmediate {
-				registers[j] = c.In.Input[i]
-				j++
-			}
-		}
+		setRegister(c.In.Input, registers)
+
 		err := opfunc(
 			&common.Context{Opt: common.Option{SafeMath: true}},
 			c.In.Input, registers, c.In.Output)
@@ -539,5 +544,27 @@ func (s *instructionSuite) run(testcases []opTestcase, opfunc OpFunction) {
 			"idx: %v, op: %v, case: %v\noutput not equal.\nExpect: %v\nResult: %v\n",
 			idx, c.In.Op, c.Name, c.Output, result,
 		)
+	}
+}
+
+func runBench(b *testing.B, testcases []opTestcase, opfunc OpFunction) {
+	for _, c := range testcases {
+		if c.Err != nil {
+			// skip error case
+			continue
+		}
+
+		b.Run(c.Name, func(b *testing.B) {
+			registers := make([]*Operand, len(c.In.Input))
+			for i := 0; i < b.N; i++ {
+				b.StopTimer()
+				setRegister(c.In.Input, registers)
+				b.StartTimer()
+				opfunc(
+					&common.Context{Opt: common.Option{SafeMath: true}},
+					c.In.Input, registers, c.In.Output)
+			}
+			b.ReportAllocs()
+		})
 	}
 }
