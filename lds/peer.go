@@ -26,7 +26,7 @@ import (
 
 	"github.com/dexon-foundation/dexon/common"
 	"github.com/dexon-foundation/dexon/core/types"
-	"github.com/dexon-foundation/dexon/eth"
+	"github.com/dexon-foundation/dexon/dex"
 	"github.com/dexon-foundation/dexon/lds/flowcontrol"
 	"github.com/dexon-foundation/dexon/light"
 	"github.com/dexon-foundation/dexon/p2p"
@@ -98,11 +98,12 @@ func (p *peer) queueSend(f func()) {
 }
 
 // Info gathers and returns a collection of metadata known about a peer.
-func (p *peer) Info() *eth.PeerInfo {
-	return &eth.PeerInfo{
-		Version:    p.version,
-		Difficulty: p.Td(),
-		Head:       fmt.Sprintf("%x", p.Head()),
+func (p *peer) Info() *dex.PeerInfo {
+	// TODO: fix this when modify peer
+	return &dex.PeerInfo{
+		Version: p.version,
+		Number:  0,
+		Head:    fmt.Sprintf("%x", p.Head()),
 	}
 }
 

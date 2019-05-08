@@ -27,7 +27,7 @@ import (
 	"github.com/dexon-foundation/dexon/core"
 	"github.com/dexon-foundation/dexon/core/rawdb"
 	"github.com/dexon-foundation/dexon/core/types"
-	"github.com/dexon-foundation/dexon/eth"
+	"github.com/dexon-foundation/dexon/dex"
 	"github.com/dexon-foundation/dexon/ethdb"
 	"github.com/dexon-foundation/dexon/lds/flowcontrol"
 	"github.com/dexon-foundation/dexon/light"
@@ -49,25 +49,25 @@ type LdsServer struct {
 	quitSync    chan struct{}
 }
 
-func NewLdsServer(eth *eth.Ethereum, config *eth.Config) (*LdsServer, error) {
+func NewLdsServer(dex *dex.Dexon, config *dex.Config) (*LdsServer, error) {
 	quitSync := make(chan struct{})
-	pm, err := NewProtocolManager(eth.BlockChain().Config(), light.DefaultServerIndexerConfig, false, config.NetworkId, eth.EventMux(), eth.Engine(), newPeerSet(), eth.BlockChain(), eth.TxPool(), eth.ChainDb(), nil, nil, nil, quitSync, new(sync.WaitGroup))
+	pm, err := NewProtocolManager(dex.BlockChain().Config(), light.DefaultServerIndexerConfig, false, config.NetworkId, dex.EventMux(), dex.Engine(), newPeerSet(), dex.BlockChain(), dex.TxPool(), dex.ChainDb(), nil, nil, nil, quitSync, new(sync.WaitGroup))
 	if err != nil {
 		return nil, err
 	}
 
 	lesTopics := make([]discv5.Topic, len(AdvertiseProtocolVersions))
 	for i, pv := range AdvertiseProtocolVersions {
-		lesTopics[i] = lesTopic(eth.BlockChain().Genesis().Hash(), pv)
+		lesTopics[i] = lesTopic(dex.BlockChain().Genesis().Hash(), pv)
 	}
 
 	srv := &LdsServer{
 		ldsCommons: ldsCommons{
 			config:           config,
-			chainDb:          eth.ChainDb(),
+			chainDb:          dex.ChainDb(),
 			iConfig:          light.DefaultServerIndexerConfig,
-			chtIndexer:       light.NewChtIndexer(eth.ChainDb(), nil, params.CHTFrequencyServer, params.HelperTrieProcessConfirmations),
-			bloomTrieIndexer: light.NewBloomTrieIndexer(eth.ChainDb(), nil, params.BloomBitsBlocks, params.BloomTrieFrequency),
+			chtIndexer:       light.NewChtIndexer(dex.ChainDb(), nil, params.CHTFrequencyServer, params.HelperTrieProcessConfirmations),
+			bloomTrieIndexer: light.NewBloomTrieIndexer(dex.ChainDb(), nil, params.BloomBitsBlocks, params.BloomTrieFrequency),
 			protocolManager:  pm,
 		},
 		quitSync:  quitSync,
@@ -95,7 +95,7 @@ func NewLdsServer(eth *eth.Ethereum, config *eth.Config) (*LdsServer, error) {
 		logger.Info("Loaded bloom trie", "section", bloomTrieLastSection, "head", bloomTrieSectionHead, "root", bloomTrieRoot)
 	}
 
-	srv.chtIndexer.Start(eth.BlockChain())
+	srv.chtIndexer.Start(dex.BlockChain())
 	pm.server = srv
 
 	srv.defParams = &flowcontrol.ServerParams{
@@ -103,7 +103,7 @@ func NewLdsServer(eth *eth.Ethereum, config *eth.Config) (*LdsServer, error) {
 		MinRecharge: 50000,
 	}
 	srv.fcManager = flowcontrol.NewClientManager(uint64(config.LightServ), 10, 1000000000)
-	srv.fcCostStats = newCostStats(eth.ChainDb())
+	srv.fcCostStats = newCostStats(dex.ChainDb())
 	return srv, nil
 }
 

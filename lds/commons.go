@@ -22,7 +22,7 @@ import (
 
 	"github.com/dexon-foundation/dexon/common"
 	"github.com/dexon-foundation/dexon/core"
-	"github.com/dexon-foundation/dexon/eth"
+	"github.com/dexon-foundation/dexon/dex"
 	"github.com/dexon-foundation/dexon/ethdb"
 	"github.com/dexon-foundation/dexon/light"
 	"github.com/dexon-foundation/dexon/p2p"
@@ -32,7 +32,7 @@ import (
 
 // ldsCommons contains fields needed by both server and client.
 type ldsCommons struct {
-	config                       *eth.Config
+	config                       *dex.Config
 	iConfig                      *light.IndexerConfig
 	chainDb                      ethdb.Database
 	protocolManager              *ProtocolManager

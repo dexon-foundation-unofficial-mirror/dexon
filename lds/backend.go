@@ -26,11 +26,12 @@ import (
 	"github.com/dexon-foundation/dexon/common"
 	"github.com/dexon-foundation/dexon/common/hexutil"
 	"github.com/dexon-foundation/dexon/consensus"
+	"github.com/dexon-foundation/dexon/consensus/dexcon"
 	"github.com/dexon-foundation/dexon/core"
 	"github.com/dexon-foundation/dexon/core/bloombits"
 	"github.com/dexon-foundation/dexon/core/rawdb"
 	"github.com/dexon-foundation/dexon/core/types"
-	"github.com/dexon-foundation/dexon/eth"
+	"github.com/dexon-foundation/dexon/dex"
 	"github.com/dexon-foundation/dexon/eth/downloader"
 	"github.com/dexon-foundation/dexon/eth/filters"
 	"github.com/dexon-foundation/dexon/eth/gasprice"
@@ -42,7 +43,7 @@ import (
 	"github.com/dexon-foundation/dexon/p2p"
 	"github.com/dexon-foundation/dexon/p2p/discv5"
 	"github.com/dexon-foundation/dexon/params"
-	rpc "github.com/dexon-foundation/dexon/rpc"
+	"github.com/dexon-foundation/dexon/rpc"
 )
 
 type LightDexon struct {
@@ -77,12 +78,12 @@ type LightDexon struct {
 	wg sync.WaitGroup
 }
 
-func New(ctx *node.ServiceContext, config *eth.Config) (*LightDexon, error) {
-	chainDb, err := eth.CreateDB(ctx, config, "lightchaindata")
+func New(ctx *node.ServiceContext, config *dex.Config) (*LightDexon, error) {
+	chainDb, err := dex.CreateDB(ctx, config, "lightchaindata")
 	if err != nil {
 		return nil, err
 	}
-	chainConfig, genesisHash, genesisErr := core.SetupGenesisBlockWithOverride(chainDb, config.Genesis, config.ConstantinopleOverride)
+	chainConfig, genesisHash, genesisErr := core.SetupGenesisBlock(chainDb, config.Genesis)
 	if _, isCompat := genesisErr.(*params.ConfigCompatError); genesisErr != nil && !isCompat {
 		return nil, genesisErr
 	}
@@ -102,11 +103,11 @@ func New(ctx *node.ServiceContext, config *eth.Config) (*LightDexon, error) {
 		peers:          peers,
 		reqDist:        newRequestDistributor(peers, quitSync),
 		accountManager: ctx.AccountManager,
-		engine:         eth.CreateConsensusEngine(ctx, chainConfig, &config.Ethash, nil, false, chainDb),
+		engine:         dexcon.New(),
 		shutdownChan:   make(chan bool),
 		networkId:      config.NetworkId,
 		bloomRequests:  make(chan chan *bloombits.Retrieval),
-		bloomIndexer:   eth.NewBloomIndexer(chainDb, params.BloomBitsBlocksClient, params.HelperTrieConfirmations),
+		bloomIndexer:   dex.NewBloomIndexer(chainDb, params.BloomBitsBlocksClient, params.HelperTrieConfirmations),
 	}
 
 	ldex.relay = NewLdsTxRelay(peers, ldex.reqDist)
@@ -142,7 +143,7 @@ func New(ctx *node.ServiceContext, config *eth.Config) (*LightDexon, error) {
 	ldex.ApiBackend = &LdsApiBackend{ldex, nil}
 	gpoParams := config.GPO
 	if gpoParams.Default == nil {
-		gpoParams.Default = config.MinerGasPrice
+		gpoParams.Default = config.DefaultGasPrice
 	}
 	ldex.ApiBackend.gpo = gasprice.NewOracle(ldex.ApiBackend, gpoParams)
 	return ldex, nil
