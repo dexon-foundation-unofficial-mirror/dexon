@@ -72,8 +72,8 @@ func (s *WatchCatTestSuite) newWatchCat(
 }
 
 func (s *WatchCatTestSuite) TestBasicUsage() {
-	polling := 50 * time.Millisecond
-	timeout := 50 * time.Millisecond
+	polling := 250 * time.Millisecond
+	timeout := 250 * time.Millisecond
 	notarySet := uint32(24)
 	watchCat, rec := s.newWatchCat(notarySet, polling, timeout)
 	watchCat.Start()
