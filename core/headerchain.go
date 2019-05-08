@@ -465,7 +465,7 @@ func (c *headerVerifierCache) configuration(round uint64) *params.DexconConfig {
 
 func (hc *HeaderChain) ValidateDexonHeaderChain(chain []*types.HeaderWithGovState,
 	gov dexcon.GovernanceStateFetcher,
-	verifierCache *dexCore.TSigVerifierCache, validator Validator) (int, error) {
+	verifierCache *dexCore.TSigVerifierCache, validator HeaderValidator) (int, error) {
 	// Do a sanity check that the provided chain is actually ordered and linked
 	for i := 1; i < len(chain); i++ {
 		if chain[i].Number.Uint64() != chain[i-1].Number.Uint64()+1 || chain[i].ParentHash != chain[i-1].Hash() {
@@ -534,7 +534,7 @@ func (hc *HeaderChain) ValidateDexonHeaderChain(chain []*types.HeaderWithGovStat
 
 func (hc *HeaderChain) VerifyDexonHeader(header *types.Header,
 	gov dexcon.GovernanceStateFetcher,
-	verifierCache *dexCore.TSigVerifierCache, validator Validator) error {
+	verifierCache *dexCore.TSigVerifierCache, validator HeaderValidator) error {
 
 	if parent := hc.GetHeader(header.ParentHash, header.Number.Uint64()-1); parent == nil {
 		return consensus.ErrUnknownAncestor

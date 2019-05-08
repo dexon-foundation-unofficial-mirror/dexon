@@ -39,6 +39,10 @@ type Validator interface {
 	ValidateWitnessData(height uint64, data common.Hash) error
 }
 
+type HeaderValidator interface {
+	ValidateWitnessData(height uint64, data common.Hash) error
+}
+
 // Processor is an interface for processing blocks using a given initial state.
 //
 // Process takes the block to be processed and the statedb upon which the

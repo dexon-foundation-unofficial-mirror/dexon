@@ -74,7 +74,8 @@ type LightChain struct {
 	procInterrupt int32 // interrupt signaler for block processing
 	wg            sync.WaitGroup
 
-	engine consensus.Engine
+	engine    consensus.Engine
+	validator core.HeaderValidator
 }
 
 // NewLightChain returns a fully initialised light chain using information
@@ -118,6 +119,7 @@ func NewLightChain(odr OdrBackend, config *params.ChainConfig, engine consensus.
 			log.Error("Chain rewind was successful, resuming normal operation")
 		}
 	}
+	bc.validator = &HeaderValidator{chain: bc}
 	return bc, nil
 }
 
@@ -304,7 +306,18 @@ func (self *LightChain) GetBlockByNumber(ctx context.Context, number uint64) (*t
 }
 
 func (self *LightChain) GetGovStateByNumber(number uint64) (*types.GovState, error) {
-	return nil, fmt.Errorf("not implemented yet")
+	header := self.GetHeaderByNumber(number)
+	if header == nil {
+		return nil, fmt.Errorf("header not found")
+	}
+
+	govState := rawdb.ReadGovState(self.chainDb, header.Hash())
+	if govState == nil {
+		log.Debug("gov state not found in db")
+		return nil, fmt.Errorf("gov state not found in db")
+	}
+	log.Debug("Read gov state from db success")
+	return govState, nil
 }
 
 // Stop stops the blockchain service. If any imports are currently in progress
@@ -401,9 +414,45 @@ func (self *LightChain) InsertHeaderChain(chain []*types.Header, checkFreq int) 
 	return i, err
 }
 
-func (self *LightChain) InsertDexonHeaderChain([]*types.HeaderWithGovState,
-	dexcon.GovernanceStateFetcher, *dexCore.TSigVerifierCache) (int, error) {
-	return 0, fmt.Errorf("not implemented yet")
+func (self *LightChain) InsertDexonHeaderChain(chain []*types.HeaderWithGovState,
+	gov dexcon.GovernanceStateFetcher, verifierCache *dexCore.TSigVerifierCache) (int, error) {
+	start := time.Now()
+	if i, err := self.hc.ValidateDexonHeaderChain(chain, gov, verifierCache, self.validator); err != nil {
+		return i, err
+	}
+
+	// Make sure only one thread manipulates the chain at once
+	self.chainmu.Lock()
+	defer func() {
+		self.chainmu.Unlock()
+		time.Sleep(time.Millisecond * 10) // ugly hack; do not hog chain lock in case syncing is CPU-limited by validation
+	}()
+
+	self.wg.Add(1)
+	defer self.wg.Done()
+
+	var events []interface{}
+	whFunc := func(header *types.HeaderWithGovState) error {
+		self.mu.Lock()
+		defer self.mu.Unlock()
+
+		status, err := self.hc.WriteDexonHeader(header)
+
+		switch status {
+		case core.CanonStatTy:
+			log.Debug("Inserted new header", "number", header.Number, "hash", header.Hash())
+			events = append(events, core.ChainEvent{Block: types.NewBlockWithHeader(header.Header), Hash: header.Hash()})
+
+		case core.SideStatTy:
+			log.Debug("Inserted forked header", "number", header.Number, "hash", header.Hash())
+			events = append(events, core.ChainSideEvent{Block: types.NewBlockWithHeader(header.Header)})
+			panic("fork found")
+		}
+		return err
+	}
+	i, err := self.hc.InsertDexonHeaderChain(chain, whFunc, start)
+	self.postChainEvents(events)
+	return i, err
 }
 
 // CurrentHeader retrieves the current head header of the canonical chain. The
