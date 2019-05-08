@@ -152,8 +152,6 @@ func New(ctx *node.ServiceContext, config *dex.Config) (*LightDexon, error) {
 func lesTopic(genesisHash common.Hash, protocolVersion uint) discv5.Topic {
 	var name string
 	switch protocolVersion {
-	case lpv1:
-		name = "LES"
 	case lpv2:
 		name = "LES2"
 	default:

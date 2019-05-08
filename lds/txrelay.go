@@ -118,14 +118,14 @@ func (self *LdsTxRelay) send(txs types.Transactions, count int) {
 		rq := &distReq{
 			getCost: func(dp distPeer) uint64 {
 				peer := dp.(*peer)
-				return peer.GetRequestCost(SendTxMsg, len(ll))
+				return peer.GetRequestCost(SendTxV2Msg, len(ll))
 			},
 			canSend: func(dp distPeer) bool {
 				return dp.(*peer) == pp
 			},
 			request: func(dp distPeer) func() {
 				peer := dp.(*peer)
-				cost := peer.GetRequestCost(SendTxMsg, len(ll))
+				cost := peer.GetRequestCost(SendTxV2Msg, len(ll))
 				peer.fcServer.QueueRequest(reqID, cost)
 				return func() { peer.SendTxs(reqID, cost, ll) }
 			},

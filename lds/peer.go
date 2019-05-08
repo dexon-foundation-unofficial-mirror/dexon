@@ -208,19 +208,9 @@ func (p *peer) SendReceiptsRLP(reqID, bv uint64, receipts []rlp.RawValue) error 
 	return sendResponse(p.rw, ReceiptsMsg, reqID, bv, receipts)
 }
 
-// SendProofs sends a batch of legacy LES/1 merkle proofs, corresponding to the ones requested.
-func (p *peer) SendProofs(reqID, bv uint64, proofs proofsData) error {
-	return sendResponse(p.rw, ProofsV1Msg, reqID, bv, proofs)
-}
-
 // SendProofsV2 sends a batch of merkle proofs, corresponding to the ones requested.
 func (p *peer) SendProofsV2(reqID, bv uint64, proofs light.NodeList) error {
 	return sendResponse(p.rw, ProofsV2Msg, reqID, bv, proofs)
-}
-
-// SendHeaderProofs sends a batch of legacy LES/1 header proofs, corresponding to the ones requested.
-func (p *peer) SendHeaderProofs(reqID, bv uint64, proofs []ChtResp) error {
-	return sendResponse(p.rw, HeaderProofsMsg, reqID, bv, proofs)
 }
 
 // SendHelperTrieProofs sends a batch of HelperTrie proofs, corresponding to the ones requested.
@@ -271,8 +261,6 @@ func (p *peer) RequestReceipts(reqID, cost uint64, hashes []common.Hash) error {
 func (p *peer) RequestProofs(reqID, cost uint64, reqs []ProofReq) error {
 	p.Log().Debug("Fetching batch of proofs", "count", len(reqs))
 	switch p.version {
-	case lpv1:
-		return sendRequest(p.rw, GetProofsV1Msg, reqID, cost, reqs)
 	case lpv2:
 		return sendRequest(p.rw, GetProofsV2Msg, reqID, cost, reqs)
 	default:
@@ -283,13 +271,6 @@ func (p *peer) RequestProofs(reqID, cost uint64, reqs []ProofReq) error {
 // RequestHelperTrieProofs fetches a batch of HelperTrie merkle proofs from a remote node.
 func (p *peer) RequestHelperTrieProofs(reqID, cost uint64, data interface{}) error {
 	switch p.version {
-	case lpv1:
-		reqs, ok := data.([]ChtReq)
-		if !ok {
-			return errInvalidHelpTrieReq
-		}
-		p.Log().Debug("Fetching batch of header proofs", "count", len(reqs))
-		return sendRequest(p.rw, GetHeaderProofsMsg, reqID, cost, reqs)
 	case lpv2:
 		reqs, ok := data.([]HelperTrieReq)
 		if !ok {
@@ -312,8 +293,6 @@ func (p *peer) RequestTxStatus(reqID, cost uint64, txHashes []common.Hash) error
 func (p *peer) SendTxs(reqID, cost uint64, txs types.Transactions) error {
 	p.Log().Debug("Fetching batch of transactions", "count", len(txs))
 	switch p.version {
-	case lpv1:
-		return p2p.Send(p.rw, SendTxMsg, txs) // old message format does not include reqID
 	case lpv2:
 		return sendRequest(p.rw, SendTxV2Msg, reqID, cost, txs)
 	default:

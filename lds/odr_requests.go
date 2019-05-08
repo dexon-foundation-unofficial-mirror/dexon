@@ -191,8 +191,6 @@ type TrieRequest light.TrieRequest
 // peer's cost table (implementation of LdsOdrRequest)
 func (r *TrieRequest) GetCost(peer *peer) uint64 {
 	switch peer.version {
-	case lpv1:
-		return peer.GetRequestCost(GetProofsV1Msg, 1)
 	case lpv2:
 		return peer.GetRequestCost(GetProofsV2Msg, 1)
 	default:
@@ -351,8 +349,6 @@ type ChtRequest light.ChtRequest
 // peer's cost table (implementation of LdsOdrRequest)
 func (r *ChtRequest) GetCost(peer *peer) uint64 {
 	switch peer.version {
-	case lpv1:
-		return peer.GetRequestCost(GetHeaderProofsMsg, 1)
 	case lpv2:
 		return peer.GetRequestCost(GetHelperTrieProofsMsg, 1)
 	default:
@@ -380,15 +376,6 @@ func (r *ChtRequest) Request(reqID uint64, peer *peer) error {
 		AuxReq:  auxHeader,
 	}
 	switch peer.version {
-	case lpv1:
-		var reqsV1 ChtReq
-		if req.Type != htCanonical || req.AuxReq != auxHeader || len(req.Key) != 8 {
-			return fmt.Errorf("Request invalid in LES/1 mode")
-		}
-		blockNum := binary.BigEndian.Uint64(req.Key)
-		// convert HelperTrie request to old CHT request
-		reqsV1 = ChtReq{ChtNum: (req.TrieIdx + 1) * (r.Config.ChtSize / r.Config.PairChtSize), BlockNum: blockNum, FromLevel: req.FromLevel}
-		return peer.RequestHelperTrieProofs(reqID, r.GetCost(peer), []ChtReq{reqsV1})
 	case lpv2:
 		return peer.RequestHelperTrieProofs(reqID, r.GetCost(peer), []HelperTrieReq{req})
 	default:
