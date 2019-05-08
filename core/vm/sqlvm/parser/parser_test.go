@@ -92,6 +92,8 @@ func (s *ParserTestSuite) TestParseRules() {
 			*,
 			NOT A >= B,
 			NULL IS NULL,
+			TRUE IS NOT UNKNOWN,
+			UNKNOWN AND FALSE IS FALSE,
 			C2 OR C3 AND TRUE OR FALSE,
 			C4 NOT IN (C5, 849, 2899 - C6),
 			C7 + C8 IN (C9, 5566, 9487 * C10),

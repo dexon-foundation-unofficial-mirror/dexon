@@ -462,12 +462,20 @@ LogicExpr1In
 }
 
 LogicExpr1Is
-	= IsToken n:( _ t:NotOperator { return t, nil } )? _ u:NullLiteral
+	= IsToken n:( _ t:NotOperator { return t, nil } )?
+	_ r:( BoolLiteral / NullLiteral )
 {
 	node := &ast.IsOperatorNode{}
 	node.SetPosition(uint32(c.pos.offset))
 	node.SetLength(uint32(len(c.text)))
-	opSetSubject(node, u.(*ast.NullValueNode))
+	switch s := r.(type) {
+	case *ast.BoolValueNode:
+		opSetSubject(node, s)
+	case *ast.NullValueNode:
+		opSetSubject(node, s)
+	default:
+		panic(fmt.Sprintf("unsupported IS subject type %T", r))
+	}
 	if n != nil {
 		return opSetTarget(n.(ast.UnaryOperator), node), nil
 	}
@@ -938,15 +946,21 @@ DefaultLiteral
 }
 
 BoolLiteral
-	= b:( TrueToken / FalseToken )
+	= b:( TrueToken / FalseToken / UnknownToken )
 {
 	node := &ast.BoolValueNode{}
 	node.SetPosition(uint32(c.pos.offset))
 	node.SetLength(uint32(len(c.text)))
-	if bytes.EqualFold(b.([]byte), []byte("TRUE")) {
+	bs := b.([]byte)
+	switch {
+	case bytes.EqualFold(bs, []byte("TRUE")):
 		node.V = ast.BoolValueTrue
-	} else {
+	case bytes.EqualFold(bs, []byte("FALSE")):
 		node.V = ast.BoolValueFalse
+	case bytes.EqualFold(bs, []byte("UNKNOWN")):
+		node.V = ast.BoolValueUnknown
+	default:
+		panic(fmt.Sprintf("unknown boolean literal %s", bs))
 	}
 	return node, nil
 }
@@ -1197,6 +1211,10 @@ TrueToken
 
 FalseToken
 	= "FALSE"i !NormalIdentifierRest
+{ return c.text, nil }
+
+UnknownToken
+	= "UNKNOWN"i !NormalIdentifierRest
 { return c.text, nil }
 
 NullToken
