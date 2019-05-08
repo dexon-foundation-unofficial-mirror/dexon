@@ -19,15 +19,18 @@ package light
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math/big"
 	"sync"
 	"sync/atomic"
 	"time"
 
+	dexCore "github.com/dexon-foundation/dexon-consensus/core"
 	lru "github.com/hashicorp/golang-lru"
 
 	"github.com/dexon-foundation/dexon/common"
 	"github.com/dexon-foundation/dexon/consensus"
+	"github.com/dexon-foundation/dexon/consensus/dexcon"
 	"github.com/dexon-foundation/dexon/core"
 	"github.com/dexon-foundation/dexon/core/rawdb"
 	"github.com/dexon-foundation/dexon/core/state"
@@ -300,6 +303,10 @@ func (self *LightChain) GetBlockByNumber(ctx context.Context, number uint64) (*t
 	return self.GetBlock(ctx, hash, number)
 }
 
+func (self *LightChain) GetGovStateByNumber(number uint64) (*types.GovState, error) {
+	return nil, fmt.Errorf("not implemented yet")
+}
+
 // Stop stops the blockchain service. If any imports are currently in progress
 // it will abort them using the procInterrupt.
 func (bc *LightChain) Stop() {
@@ -392,6 +399,11 @@ func (self *LightChain) InsertHeaderChain(chain []*types.Header, checkFreq int) 
 	i, err := self.hc.InsertHeaderChain(chain, whFunc, start)
 	self.postChainEvents(events)
 	return i, err
+}
+
+func (self *LightChain) InsertDexonHeaderChain([]*types.HeaderWithGovState,
+	dexcon.GovernanceStateFetcher, *dexCore.TSigVerifierCache) (int, error) {
+	return 0, fmt.Errorf("not implemented yet")
 }
 
 // CurrentHeader retrieves the current head header of the canonical chain. The
