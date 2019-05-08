@@ -30,7 +30,8 @@
             * [Other indices](#other-indices)
                * [List of keys](#list-of-keys-1)
                * [Actual data](#actual-data-1)
-            * [Sequence (auto increment)](#sequenceauto-increment)
+            * [(TODO) Row ID reverse index](#todo-row-id-reverse-index)
+            * [Sequence (auto increment)](#sequence-auto-increment)
             * [NULL value](#null-value)
             * [Compound index](#compound-index)
             * [Contract owner](#contract-owner)
@@ -473,7 +474,7 @@ PathKey(["tables", uint8(table_idx), "writers"])
 
 Value
 ```golang
-type IndexValues struct {
+type Writers struct {
 	// Slot 1.
 	Length          uint64
 	<unused>        uint64
@@ -498,7 +499,7 @@ Value
 ```golang
 type TableWriter struct {
 	// Slot 1.
-	IndexToIndexValuesOffset       uint64
+	AddressToWritersOffset         uint64
 	<unused>                       uint64
 	<unused>                       uint64
 	<unused>                       uint64
