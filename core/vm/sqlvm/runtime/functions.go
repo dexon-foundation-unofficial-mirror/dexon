@@ -448,12 +448,6 @@ func fnSubString(ctx *common.Context, ops []*Operand, length uint64) (result *Op
 		return
 	}
 
-	if len(ops[0].Data) != len(ops[1].Data) ||
-		len(ops[0].Data) != len(ops[2].Data) {
-		err = se.ErrorCodeIndexOutOfRange
-		return
-	}
-
 	op := ops[0]
 
 	if !metaAllDynBytes(op) {
@@ -473,7 +467,7 @@ func fnSubString(ctx *common.Context, ops []*Operand, length uint64) (result *Op
 	starts, ends := ops[1], ops[2]
 
 	var start, end uint64
-	for i := 0; i < len(op.Data); i++ {
+	for i := uint64(0); i < length; i++ {
 		result.Data[i] = make(Tuple, len(op.Data[i]))
 
 		if starts.IsImmediate {
