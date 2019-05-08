@@ -11,6 +11,44 @@ import (
 	"github.com/dexon-foundation/dexon/core/vm/sqlvm/schema"
 )
 
+// Procedure of type checking, type inference and constant folding.
+//
+// It is a reminder for developers who implement check functions for
+// expressions. These steps are expected to be followed by all related
+// functions. Steps which are not applicable can be skipped.
+//
+// 1. Call check functions for all child nodes.
+//
+// 2. Initialize the return value to the current node.
+//    (1) There are two exceptions to this step, PosOperator and ParenOperator,
+//        which are not recognized by the planner and the code generator. They
+//        are basically no-ops and should be always removed.
+//
+// 3. Check data types for all child nodes.
+//    (1) If the operator only operates on a limited set of data types, check
+//        if all child nodes obey the restriction.
+//    (2) If the operator requires all or some operands to have the same type,
+//        check if corresponding child nodes meet the requirement. If these
+//        operands include both nodes with types and node without types, check
+//        and set types for nodes without types.
+//    (3) Determine the data type of the current node.
+//
+// 4. Fold constants.
+//    (1) Extract constant values stored in value nodes.
+//    (2) Evaluate the expression and create a new node to hold the result of
+//        the evaluation. Never modify a node in-place.
+//    (3) Copy position, length, token from the current node to the new node.
+//    (4) Set the data type of the new node to the one determined in 3-(3).
+//    (5) Set the return value to the new node.
+//
+// 5. Process the type action.
+//    (1) If the type action is nil, don't do anything.
+//    (2) If the data type of the current node is still pending, determine the
+//        type according to the type action.
+//    (3) If the data type of the current node is already determined, don't
+//        change the type. Instead, check if the current type is acceptable to
+//        the type action if the type action is mandatory.
+
 func checkExpr(n ast.ExprNode,
 	s schema.Schema, o CheckOptions, c *schemaCache, el *errors.ErrorList,
 	tr schema.TableRef, ta typeAction) ast.ExprNode {
@@ -128,43 +166,31 @@ func elAppendTypeErrorAssignDataType(el *errors.ErrorList, n ast.ExprNode,
 	}, nil)
 }
 
-// Procedure of type checking, type inference and constant folding.
-//
-// It is a reminder for developers who implement check functions for
-// expressions. These steps are expected to be followed by all related
-// functions. Steps which are not applicable can be skipped.
-//
-// 1. Call check functions for all child nodes.
-//
-// 2. Initialize the return value to the current node.
-//    (1) There are two exceptions to this step, PosOperator and ParenOperator,
-//        which are not recognized by the planner and the code generator. They
-//        are basically no-ops and should be always removed.
-//
-// 3. Check data types for all child nodes.
-//    (1) If the operator only operates on a limited set of data types, check
-//        if all child nodes obey the restriction.
-//    (2) If the operator requires all or some operands to have the same type,
-//        check if corresponding child nodes meet the requirement. If these
-//        operands include both nodes with types and node without types, check
-//        and set types for nodes without types.
-//    (3) Determine the data type of the current node.
-//
-// 4. Fold constants.
-//    (1) Extract constant values stored in value nodes.
-//    (2) Evaluate the expression and create a new node to hold the result of
-//        the evaluation. Never modify a node in-place.
-//    (3) Copy position, length, token from the current node to the new node.
-//    (4) Set the data type of the new node to the one determined in 3-(3).
-//    (5) Set the return value to the new node.
-//
-// 5. Process the type action.
-//    (1) If the type action is nil, don't do anything.
-//    (2) If the data type of the current node is still pending, determine the
-//        type according to the type action.
-//    (3) If the data type of the current node is already determined, don't
-//        change the type. Instead, check if the current type is acceptable to
-//        the type action if the type action is mandatory.
+func verifyTypeAction(n ast.ExprNode, fn string, dt ast.DataType,
+	el *errors.ErrorList, ta typeAction) ast.ExprNode {
+
+	switch a := ta.(type) {
+	case typeActionInferDefault:
+	case typeActionInferWithSize:
+	case typeActionInferWithMajor:
+	case typeActionAssign:
+		if !dt.Equal(a.dt) {
+			elAppendTypeErrorAssignDataType(el, n, fn, a.dt, dt)
+			return nil
+		}
+	}
+	return n
+}
+
+func delegateTypeAction(n ast.ExprNode, fn string, dt ast.DataType,
+	s schema.Schema, o CheckOptions, c *schemaCache, el *errors.ErrorList,
+	tr schema.TableRef, ta typeAction) ast.ExprNode {
+
+	if dt.Pending() {
+		return checkExpr(n, s, o, c, el, tr, ta)
+	}
+	return verifyTypeAction(n, fn, dt, el, ta)
+}
 
 func checkVariable(n *ast.IdentifierNode,
 	s schema.Schema, o CheckOptions, c *schemaCache, el *errors.ErrorList,
@@ -206,17 +232,9 @@ func checkVariable(n *ast.IdentifierNode,
 
 	cr := cd.Column
 	dt := s[tr].Columns[cr].Type
-	switch a := ta.(type) {
-	case typeActionInferDefault:
-	case typeActionInferWithSize:
-	case typeActionInferWithMajor:
-	case typeActionAssign:
-		if !dt.Equal(a.dt) {
-			elAppendTypeErrorAssignDataType(el, n, fn, a.dt, dt)
-			return nil
-		}
+	if verifyTypeAction(n, fn, dt, el, ta) == nil {
+		return nil
 	}
-
 	n.SetType(dt)
 	n.Desc = cd
 	return n
@@ -808,6 +826,19 @@ func checkNullValue(n *ast.NullValueNode,
 	return n
 }
 
+func checkChildrenForUnaryOperator(n ast.UnaryOperator,
+	s schema.Schema, o CheckOptions, c *schemaCache, el *errors.ErrorList,
+	tr schema.TableRef) ast.ExprNode {
+
+	target := n.GetTarget()
+	target = checkExpr(target, s, o, c, el, tr, nil)
+	if target == nil {
+		return nil
+	}
+	n.SetTarget(target)
+	return n
+}
+
 func elAppendTypeErrorOperatorValueNode(el *errors.ErrorList, n ast.Valuer,
 	fn, op string) {
 
@@ -896,13 +927,13 @@ func checkPosOperator(n *ast.PosOperatorNode,
 	fn := "CheckPosOperator"
 	op := "unary operator +"
 
-	target := n.GetTarget()
-	target = checkExpr(target, s, o, c, el, tr, nil)
-	if target == nil {
+	r := checkChildrenForUnaryOperator(n, s, o, c, el, tr)
+	if r == nil {
 		return nil
 	}
-	r := target
+	r = n.GetTarget()
 
+	target := n.GetTarget()
 	dtTarget := target.GetType()
 	if !validateNumberType(dtTarget, el, target, fn, op) {
 		return nil
@@ -938,33 +969,7 @@ func checkPosOperator(n *ast.PosOperatorNode,
 		r.SetType(dt)
 	}
 
-	switch a := ta.(type) {
-	case typeActionInferDefault:
-		if dt.Pending() {
-			r = checkExpr(r, s, o, c, el, tr, ta)
-		}
-
-	case typeActionInferWithSize:
-		if dt.Pending() {
-			r = checkExpr(r, s, o, c, el, tr, ta)
-		}
-
-	case typeActionInferWithMajor:
-		if dt.Pending() {
-			r = checkExpr(r, s, o, c, el, tr, ta)
-		}
-
-	case typeActionAssign:
-		if dt.Pending() {
-			r = checkExpr(r, s, o, c, el, tr, ta)
-		} else {
-			if !dt.Equal(a.dt) {
-				elAppendTypeErrorAssignDataType(el, n, fn, a.dt, dt)
-				return nil
-			}
-		}
-	}
-	return r
+	return delegateTypeAction(r, fn, dt, s, o, c, el, tr, ta)
 }
 
 func checkNegOperator(n *ast.NegOperatorNode,
@@ -974,14 +979,12 @@ func checkNegOperator(n *ast.NegOperatorNode,
 	fn := "CheckNegOperator"
 	op := "unary operator -"
 
-	target := n.GetTarget()
-	target = checkExpr(target, s, o, c, el, tr, nil)
-	if target == nil {
+	r := checkChildrenForUnaryOperator(n, s, o, c, el, tr)
+	if r == nil {
 		return nil
 	}
-	n.SetTarget(target)
-	r := ast.ExprNode(n)
 
+	target := n.GetTarget()
 	dtTarget := target.GetType()
 	if !validateNumberType(dtTarget, el, target, fn, op) {
 		return nil
@@ -1041,33 +1044,7 @@ func checkNegOperator(n *ast.NegOperatorNode,
 		r.SetType(dt)
 	}
 
-	switch a := ta.(type) {
-	case typeActionInferDefault:
-		if dt.Pending() {
-			r = checkExpr(r, s, o, c, el, tr, ta)
-		}
-
-	case typeActionInferWithSize:
-		if dt.Pending() {
-			r = checkExpr(r, s, o, c, el, tr, ta)
-		}
-
-	case typeActionInferWithMajor:
-		if dt.Pending() {
-			r = checkExpr(r, s, o, c, el, tr, ta)
-		}
-
-	case typeActionAssign:
-		if dt.Pending() {
-			r = checkExpr(r, s, o, c, el, tr, ta)
-		} else {
-			if !dt.Equal(a.dt) {
-				elAppendTypeErrorAssignDataType(el, n, fn, a.dt, dt)
-				return nil
-			}
-		}
-	}
-	return r
+	return delegateTypeAction(r, fn, dt, s, o, c, el, tr, ta)
 }
 
 func validateBoolType(dt ast.DataType, el *errors.ErrorList, n ast.ExprNode,
@@ -1111,14 +1088,12 @@ func checkNotOperator(n *ast.NotOperatorNode,
 	fn := "CheckNotOperator"
 	op := "unary operator NOT"
 
-	target := n.GetTarget()
-	target = checkExpr(target, s, o, c, el, tr, nil)
-	if target == nil {
-		return nil
+	r := checkChildrenForUnaryOperator(n, s, o, c, el, tr)
+	if r == nil {
+		return r
 	}
-	n.SetTarget(target)
-	r := ast.ExprNode(n)
 
+	target := n.GetTarget()
 	dtTarget := target.GetType()
 	if !validateBoolType(dtTarget, el, target, fn, op) {
 		return nil
@@ -1138,17 +1113,7 @@ func checkNotOperator(n *ast.NotOperatorNode,
 		r = node
 	}
 
-	switch a := ta.(type) {
-	case typeActionInferDefault:
-	case typeActionInferWithSize:
-	case typeActionInferWithMajor:
-	case typeActionAssign:
-		if !dt.Equal(a.dt) {
-			elAppendTypeErrorAssignDataType(el, n, fn, a.dt, dt)
-			return nil
-		}
-	}
-	return r
+	return verifyTypeAction(r, fn, dt, el, ta)
 }
 
 func checkParenOperator(n *ast.ParenOperatorNode,
@@ -1166,12 +1131,9 @@ func checkParenOperator(n *ast.ParenOperatorNode,
 	return r
 }
 
-func checkAndOperator(n *ast.AndOperatorNode,
+func checkChildrenForBinaryOperator(n ast.BinaryOperator,
 	s schema.Schema, o CheckOptions, c *schemaCache, el *errors.ErrorList,
-	tr schema.TableRef, ta typeAction) ast.ExprNode {
-
-	fn := "CheckAndOperator"
-	op := "binary operator AND"
+	tr schema.TableRef) ast.ExprNode {
 
 	object := n.GetObject()
 	object = checkExpr(object, s, o, c, el, tr, nil)
@@ -1185,12 +1147,27 @@ func checkAndOperator(n *ast.AndOperatorNode,
 	}
 	n.SetObject(object)
 	n.SetSubject(subject)
-	r := ast.ExprNode(n)
+	return n
+}
 
+func checkAndOperator(n *ast.AndOperatorNode,
+	s schema.Schema, o CheckOptions, c *schemaCache, el *errors.ErrorList,
+	tr schema.TableRef, ta typeAction) ast.ExprNode {
+
+	fn := "CheckAndOperator"
+	op := "binary operator AND"
+
+	r := checkChildrenForBinaryOperator(n, s, o, c, el, tr)
+	if r == nil {
+		return nil
+	}
+
+	object := n.GetObject()
 	dtObject := object.GetType()
 	if !validateBoolType(dtObject, el, object, fn, op) {
 		return nil
 	}
+	subject := n.GetSubject()
 	dtSubject := subject.GetType()
 	if !validateBoolType(dtSubject, el, subject, fn, op) {
 		return nil
@@ -1225,17 +1202,7 @@ func checkAndOperator(n *ast.AndOperatorNode,
 		r = node
 	}
 
-	switch a := ta.(type) {
-	case typeActionInferDefault:
-	case typeActionInferWithSize:
-	case typeActionInferWithMajor:
-	case typeActionAssign:
-		if !dt.Equal(a.dt) {
-			elAppendTypeErrorAssignDataType(el, n, fn, a.dt, dt)
-			return nil
-		}
-	}
-	return r
+	return verifyTypeAction(r, fn, dt, el, ta)
 }
 
 func checkOrOperator(n *ast.OrOperatorNode,
@@ -1245,24 +1212,17 @@ func checkOrOperator(n *ast.OrOperatorNode,
 	fn := "CheckOrOperator"
 	op := "binary operator OR"
 
-	object := n.GetObject()
-	object = checkExpr(object, s, o, c, el, tr, nil)
-	if object == nil {
+	r := checkChildrenForBinaryOperator(n, s, o, c, el, tr)
+	if r == nil {
 		return nil
 	}
-	subject := n.GetSubject()
-	subject = checkExpr(subject, s, o, c, el, tr, nil)
-	if subject == nil {
-		return nil
-	}
-	n.SetObject(object)
-	n.SetSubject(subject)
-	r := ast.ExprNode(n)
 
+	object := n.GetObject()
 	dtObject := object.GetType()
 	if !validateBoolType(dtObject, el, object, fn, op) {
 		return nil
 	}
+	subject := n.GetSubject()
 	dtSubject := subject.GetType()
 	if !validateBoolType(dtSubject, el, object, fn, op) {
 		return nil
@@ -1307,7 +1267,8 @@ func checkOrOperator(n *ast.OrOperatorNode,
 			return nil
 		}
 	}
-	return r
+
+	return verifyTypeAction(r, fn, dt, el, ta)
 }
 
 func validateOrderedType(dt ast.DataType, el *errors.ErrorList, n ast.ExprNode,
@@ -1556,24 +1517,17 @@ func checkRelationalOperator(n ast.BinaryOperator,
 	evalDecimal func(decimal.NullDecimal, decimal.NullDecimal) ast.BoolValue,
 ) ast.ExprNode {
 
-	object := n.GetObject()
-	object = checkExpr(object, s, o, c, el, tr, nil)
-	if object == nil {
+	r := checkChildrenForBinaryOperator(n, s, o, c, el, tr)
+	if r == nil {
 		return nil
 	}
-	subject := n.GetSubject()
-	subject = checkExpr(subject, s, o, c, el, tr, nil)
-	if subject == nil {
-		return nil
-	}
-	n.SetObject(object)
-	n.SetSubject(subject)
-	r := ast.ExprNode(n)
 
+	object := n.GetObject()
 	dtObject := object.GetType()
 	if !validateOrderedType(dtObject, el, object, fn, op) {
 		return nil
 	}
+	subject := n.GetSubject()
 	dtSubject := subject.GetType()
 	if !validateOrderedType(dtSubject, el, subject, fn, op) {
 		return nil
@@ -1595,17 +1549,7 @@ func checkRelationalOperator(n ast.BinaryOperator,
 		}
 	}
 
-	switch a := ta.(type) {
-	case typeActionInferDefault:
-	case typeActionInferWithSize:
-	case typeActionInferWithMajor:
-	case typeActionAssign:
-		if !dt.Equal(a.dt) {
-			elAppendTypeErrorAssignDataType(el, n, fn, a.dt, dt)
-			return nil
-		}
-	}
-	return r
+	return verifyTypeAction(r, fn, dt, el, ta)
 }
 
 func checkGreaterOrEqualOperator(n *ast.GreaterOrEqualOperatorNode,
@@ -1820,24 +1764,17 @@ func checkConcatOperator(n *ast.ConcatOperatorNode,
 	fn := "CheckConcatOperator"
 	op := "binary operator ||"
 
-	object := n.GetObject()
-	object = checkExpr(object, s, o, c, el, tr, nil)
-	if object == nil {
+	r := checkChildrenForBinaryOperator(n, s, o, c, el, tr)
+	if r == nil {
 		return nil
 	}
-	subject := n.GetSubject()
-	subject = checkExpr(subject, s, o, c, el, tr, nil)
-	if subject == nil {
-		return nil
-	}
-	n.SetObject(object)
-	n.SetSubject(subject)
-	r := ast.ExprNode(n)
 
+	object := n.GetObject()
 	dtObject := object.GetType()
 	if !validateBytesType(dtObject, el, object, fn, op) {
 		return nil
 	}
+	subject := n.GetSubject()
 	dtSubject := subject.GetType()
 	if !validateBytesType(dtSubject, el, subject, fn, op) {
 		return nil
@@ -2047,33 +1984,7 @@ func checkConcatOperator(n *ast.ConcatOperatorNode,
 		}
 	}
 
-	switch a := ta.(type) {
-	case typeActionInferDefault:
-		if dt.Pending() {
-			r = checkExpr(r, s, o, c, el, tr, ta)
-		}
-
-	case typeActionInferWithSize:
-		if dt.Pending() {
-			r = checkExpr(r, s, o, c, el, tr, ta)
-		}
-
-	case typeActionInferWithMajor:
-		if dt.Pending() {
-			r = checkExpr(r, s, o, c, el, tr, ta)
-		}
-
-	case typeActionAssign:
-		if dt.Pending() {
-			r = checkExpr(r, s, o, c, el, tr, ta)
-		} else {
-			if !dt.Equal(a.dt) {
-				elAppendTypeErrorAssignDataType(el, n, fn, a.dt, dt)
-				return nil
-			}
-		}
-	}
-	return r
+	return delegateTypeAction(r, fn, dt, s, o, c, el, tr, ta)
 }
 
 func checkArithmeticBinaryOperator(n ast.BinaryOperator,
@@ -2082,24 +1993,17 @@ func checkArithmeticBinaryOperator(n ast.BinaryOperator,
 	eval func(decimal.Decimal, decimal.Decimal) decimal.Decimal,
 ) ast.ExprNode {
 
-	object := n.GetObject()
-	object = checkExpr(object, s, o, c, el, tr, nil)
-	if object == nil {
+	r := checkChildrenForBinaryOperator(n, s, o, c, el, tr)
+	if r == nil {
 		return nil
 	}
-	subject := n.GetSubject()
-	subject = checkExpr(subject, s, o, c, el, tr, nil)
-	if subject == nil {
-		return nil
-	}
-	n.SetObject(object)
-	n.SetSubject(subject)
-	r := ast.ExprNode(n)
 
+	object := n.GetObject()
 	dtObject := object.GetType()
 	if !validateNumberType(dtObject, el, object, fn, op) {
 		return nil
 	}
+	subject := n.GetSubject()
 	dtSubject := subject.GetType()
 	if !validateNumberType(dtSubject, el, subject, fn, op) {
 		return nil
@@ -2205,33 +2109,7 @@ func checkArithmeticBinaryOperator(n ast.BinaryOperator,
 		}
 	}
 
-	switch a := ta.(type) {
-	case typeActionInferDefault:
-		if dt.Pending() {
-			r = checkExpr(r, s, o, c, el, tr, ta)
-		}
-
-	case typeActionInferWithSize:
-		if dt.Pending() {
-			r = checkExpr(r, s, o, c, el, tr, ta)
-		}
-
-	case typeActionInferWithMajor:
-		if dt.Pending() {
-			r = checkExpr(r, s, o, c, el, tr, ta)
-		}
-
-	case typeActionAssign:
-		if dt.Pending() {
-			r = checkExpr(r, s, o, c, el, tr, ta)
-		} else {
-			if !dt.Equal(a.dt) {
-				elAppendTypeErrorAssignDataType(el, n, fn, a.dt, dt)
-				return nil
-			}
-		}
-	}
-	return r
+	return delegateTypeAction(r, fn, dt, s, o, c, el, tr, ta)
 }
 
 func checkAddOperator(n *ast.AddOperatorNode,
@@ -2308,19 +2186,13 @@ func checkIsOperator(n *ast.IsOperatorNode,
 	fn := "CheckIsOperator"
 	op := "binary operator IS"
 
+	r := checkChildrenForBinaryOperator(n, s, o, c, el, tr)
+	if r == nil {
+		return r
+	}
+
 	object := n.GetObject()
-	object = checkExpr(object, s, o, c, el, tr, nil)
-	if object == nil {
-		return nil
-	}
 	subject := n.GetSubject()
-	subject = checkExpr(subject, s, o, c, el, tr, nil)
-	if subject == nil {
-		return nil
-	}
-	n.SetObject(object)
-	n.SetSubject(subject)
-	r := ast.ExprNode(n)
 
 	reportUnsupportedConstant := func(n ast.Valuer) {
 		el.Append(errors.Error{
@@ -2407,15 +2279,5 @@ func checkIsOperator(n *ast.IsOperatorNode,
 		r = node
 	}
 
-	switch a := ta.(type) {
-	case typeActionInferDefault:
-	case typeActionInferWithSize:
-	case typeActionInferWithMajor:
-	case typeActionAssign:
-		if !dt.Equal(a.dt) {
-			elAppendTypeErrorAssignDataType(el, n, fn, a.dt, dt)
-			return nil
-		}
-	}
-	return r
+	return verifyTypeAction(r, fn, dt, el, ta)
 }
