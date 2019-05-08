@@ -26,14 +26,17 @@ import (
 	"sync"
 	"time"
 
+	dexCore "github.com/dexon-foundation/dexon-consensus/core"
+
 	"github.com/dexon-foundation/dexon/common"
 	"github.com/dexon-foundation/dexon/common/mclock"
 	"github.com/dexon-foundation/dexon/consensus"
+	"github.com/dexon-foundation/dexon/consensus/dexcon"
 	"github.com/dexon-foundation/dexon/core"
 	"github.com/dexon-foundation/dexon/core/rawdb"
 	"github.com/dexon-foundation/dexon/core/state"
 	"github.com/dexon-foundation/dexon/core/types"
-	"github.com/dexon-foundation/dexon/eth/downloader"
+	"github.com/dexon-foundation/dexon/dex/downloader"
 	"github.com/dexon-foundation/dexon/ethdb"
 	"github.com/dexon-foundation/dexon/event"
 	"github.com/dexon-foundation/dexon/light"
@@ -76,8 +79,11 @@ type BlockChain interface {
 	GetTd(hash common.Hash, number uint64) *big.Int
 	State() (*state.StateDB, error)
 	InsertHeaderChain(chain []*types.Header, checkFreq int) (int, error)
+	InsertDexonHeaderChain([]*types.HeaderWithGovState,
+		dexcon.GovernanceStateFetcher, *dexCore.TSigVerifierCache) (int, error)
 	Rollback(chain []common.Hash)
 	GetHeaderByNumber(number uint64) *types.Header
+	GetGovStateByNumber(number uint64) (*types.GovState, error)
 	GetAncestor(hash common.Hash, number, ancestor uint64, maxNonCanonical *uint64) (common.Hash, uint64)
 	Genesis() *types.Block
 	SubscribeChainHeadEvent(ch chan<- core.ChainHeadEvent) event.Subscription
@@ -502,7 +508,7 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 		// A batch of headers arrived to one of our previous requests
 		var resp struct {
 			ReqID, BV uint64
-			Headers   []*types.Header
+			Headers   []*types.HeaderWithGovState
 		}
 		if err := msg.Decode(&resp); err != nil {
 			return errResp(ErrDecode, "msg %v: %v", msg, err)
@@ -1026,11 +1032,11 @@ type peerConnection struct {
 	peer    *peer
 }
 
-func (pc *peerConnection) Head() (common.Hash, *big.Int) {
-	return pc.peer.HeadAndTd()
+func (pc *peerConnection) Head() (common.Hash, uint64) {
+	return pc.peer.HeadAndNumber()
 }
 
-func (pc *peerConnection) RequestHeadersByHash(origin common.Hash, amount int, skip int, reverse bool) error {
+func (pc *peerConnection) RequestHeadersByHash(origin common.Hash, amount int, skip int, reverse bool, withGov bool) error {
 	reqID := genReqID()
 	rq := &distReq{
 		getCost: func(dp distPeer) uint64 {
@@ -1054,7 +1060,7 @@ func (pc *peerConnection) RequestHeadersByHash(origin common.Hash, amount int, s
 	return nil
 }
 
-func (pc *peerConnection) RequestHeadersByNumber(origin uint64, amount int, skip int, reverse bool) error {
+func (pc *peerConnection) RequestHeadersByNumber(origin uint64, amount int, skip int, reverse bool, withGov bool) error {
 	reqID := genReqID()
 	rq := &distReq{
 		getCost: func(dp distPeer) uint64 {
@@ -1076,6 +1082,10 @@ func (pc *peerConnection) RequestHeadersByNumber(origin uint64, amount int, skip
 		return light.ErrNoPeers
 	}
 	return nil
+}
+
+func (pc *peerConnection) RequestGovStateByHash(hash common.Hash) error {
+	return fmt.Errorf("Not implemented yet")
 }
 
 func (d *downloaderPeerNotify) registerPeer(p *peer) {

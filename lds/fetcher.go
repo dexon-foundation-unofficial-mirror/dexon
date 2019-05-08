@@ -101,7 +101,7 @@ type fetchRequest struct {
 // fetchResponse represents a header download response
 type fetchResponse struct {
 	reqID   uint64
-	headers []*types.Header
+	headers []*types.HeaderWithGovState
 	peer    *peer
 }
 
@@ -506,7 +506,7 @@ func (f *lightFetcher) nextRequest() (*distReq, uint64, bool) {
 }
 
 // deliverHeaders delivers header download request responses for processing
-func (f *lightFetcher) deliverHeaders(peer *peer, reqID uint64, headers []*types.Header) {
+func (f *lightFetcher) deliverHeaders(peer *peer, reqID uint64, headers []*types.HeaderWithGovState) {
 	f.deliverChn <- fetchResponse{reqID: reqID, headers: headers, peer: peer}
 }
 
@@ -518,7 +518,7 @@ func (f *lightFetcher) processResponse(req fetchRequest, resp fetchResponse) boo
 	}
 	headers := make([]*types.Header, req.amount)
 	for i, header := range resp.headers {
-		headers[int(req.amount)-1-i] = header
+		headers[int(req.amount)-1-i] = header.Header
 	}
 	if _, err := f.chain.InsertHeaderChain(headers, 1); err != nil {
 		if err == consensus.ErrFutureBlock {

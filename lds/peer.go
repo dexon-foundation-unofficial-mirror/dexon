@@ -99,10 +99,9 @@ func (p *peer) queueSend(f func()) {
 
 // Info gathers and returns a collection of metadata known about a peer.
 func (p *peer) Info() *dex.PeerInfo {
-	// TODO: fix this when modify peer
 	return &dex.PeerInfo{
 		Version: p.version,
-		Number:  0,
+		Number:  p.Number(),
 		Head:    fmt.Sprintf("%x", p.Head()),
 	}
 }
@@ -116,12 +115,12 @@ func (p *peer) Head() (hash common.Hash) {
 	return hash
 }
 
-func (p *peer) HeadAndTd() (hash common.Hash, td *big.Int) {
+func (p *peer) HeadAndNumber() (hash common.Hash, number uint64) {
 	p.lock.RLock()
 	defer p.lock.RUnlock()
 
 	copy(hash[:], p.headInfo.Hash[:])
-	return hash, p.headInfo.Td
+	return hash, p.headInfo.Number
 }
 
 func (p *peer) headBlockInfo() blockInfo {
@@ -132,11 +131,11 @@ func (p *peer) headBlockInfo() blockInfo {
 }
 
 // Td retrieves the current total difficulty of a peer.
-func (p *peer) Td() *big.Int {
+func (p *peer) Number() uint64 {
 	p.lock.RLock()
 	defer p.lock.RUnlock()
 
-	return new(big.Int).Set(p.headInfo.Td)
+	return p.headInfo.Number
 }
 
 // waitBefore implements distPeer interface
@@ -598,12 +597,12 @@ func (ps *peerSet) BestPeer() *peer {
 	defer ps.lock.RUnlock()
 
 	var (
-		bestPeer *peer
-		bestTd   *big.Int
+		bestPeer   *peer
+		bestNumber uint64
 	)
 	for _, p := range ps.peers {
-		if td := p.Td(); bestPeer == nil || td.Cmp(bestTd) > 0 {
-			bestPeer, bestTd = p, td
+		if number := p.Number(); bestPeer == nil || number > bestNumber {
+			bestPeer, bestNumber = p, number
 		}
 	}
 	return bestPeer
