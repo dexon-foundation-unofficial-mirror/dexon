@@ -251,9 +251,9 @@ func (r *Raw) toBytes(dType ast.DataType) []byte {
 	case ast.DataTypeMajorUint,
 		ast.DataTypeMajorInt,
 		ast.DataTypeMajorFixed:
-		bytes, err := ast.DecimalEncode(dType, r.Value)
-		if err != nil {
-			panic(err)
+		bytes, ok := ast.DecimalEncode(dType, r.Value)
+		if !ok {
+			panic(fmt.Sprintf("DecimalDecode does not handle %v", dType))
 		}
 		return bytes
 	default:
@@ -271,10 +271,10 @@ func (r *Raw) fromBytes(bytes []byte, dType ast.DataType) {
 	case ast.DataTypeMajorUint,
 		ast.DataTypeMajorInt,
 		ast.DataTypeMajorFixed:
-		var err error
-		r.Value, err = ast.DecimalDecode(dType, bytes)
-		if err != nil {
-			panic(err)
+		var ok bool
+		r.Value, ok = ast.DecimalDecode(dType, bytes)
+		if !ok {
+			panic(fmt.Sprintf("DecimalDecode does not handle %v", dType))
 		}
 	default:
 		panic(fmt.Errorf("unrecognized data type: %v", dType))
