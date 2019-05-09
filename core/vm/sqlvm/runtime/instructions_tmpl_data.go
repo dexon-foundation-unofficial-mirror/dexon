@@ -1450,7 +1450,7 @@ var testData = &tmplData{
 								{Major: "DynamicBytes", Minor: 0},
 							},
 							Data: []string{
-								`{B: "a%bcdefg", B: "gfedcba"}`,
+								`{B: "a%bcdefg\n", B: "gfedcba"}`,
 							},
 						},
 						{
@@ -1484,8 +1484,8 @@ var testData = &tmplData{
 								{Major: "DynamicBytes", Minor: 0},
 							},
 							Data: []string{
-								`{B: "a%bcdefg"}`,
-								`{B: "gfedcba"}`,
+								`{B: "a%bcdefg\n"}`,
+								`{B: "\ngfedcba"}`,
 							},
 						},
 						{
@@ -1516,7 +1516,7 @@ var testData = &tmplData{
 						},
 						Data: []string{
 							"{T}",
-							"{T}",
+							"{F}",
 						},
 					},
 				},
@@ -2894,7 +2894,7 @@ var testData = &tmplData{
 							Metas: []*tmplOpMeta{
 								{Major: "Uint", Minor: 0},
 							},
-							Data: []string{`{V: 2}`},
+							Data: []string{`{V: 1}`},
 						},
 						{
 							Im: true,

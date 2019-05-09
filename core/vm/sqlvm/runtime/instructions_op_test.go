@@ -2339,7 +2339,7 @@ func (s *instructionSuite) TestOpLike() {
 							ast.ComposeDataType(ast.DataTypeMajorDynamicBytes, 0), ast.ComposeDataType(ast.DataTypeMajorDynamicBytes, 0),
 						},
 						[]Tuple{
-							{&Raw{Bytes: []byte("a%bcdefg")}, &Raw{Bytes: []byte("gfedcba")}},
+							{&Raw{Bytes: []byte("a%bcdefg\n")}, &Raw{Bytes: []byte("gfedcba")}},
 						},
 					),
 					makeOperand(
@@ -2385,8 +2385,8 @@ func (s *instructionSuite) TestOpLike() {
 							ast.ComposeDataType(ast.DataTypeMajorDynamicBytes, 0),
 						},
 						[]Tuple{
-							{&Raw{Bytes: []byte("a%bcdefg")}},
-							{&Raw{Bytes: []byte("gfedcba")}},
+							{&Raw{Bytes: []byte("a%bcdefg\n")}},
+							{&Raw{Bytes: []byte("\ngfedcba")}},
 						},
 					),
 					makeOperand(
@@ -2419,7 +2419,7 @@ func (s *instructionSuite) TestOpLike() {
 				},
 				[]Tuple{
 					{rawTrue},
-					{rawTrue},
+					{rawFalse},
 				},
 			),
 			nil,

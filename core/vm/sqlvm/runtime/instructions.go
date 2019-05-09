@@ -1266,6 +1266,8 @@ func like2regexp(pattern []byte, escape []byte) (reg *regexp.Regexp, err error) 
 		rPattern = append(rPattern, bytesEnd...)
 	}
 
+	rPattern = append([]byte("(?s)"), rPattern...)
+
 	reg, err = regexp.Compile(string(rPattern))
 	return
 }
