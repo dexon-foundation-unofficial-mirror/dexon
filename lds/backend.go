@@ -78,6 +78,13 @@ type LightDexon struct {
 	wg sync.WaitGroup
 }
 
+// TODO: implement this
+type dummyGov struct{}
+
+func (d *dummyGov) GetRoundHeight(round uint64) uint64 {
+	return 0
+}
+
 func New(ctx *node.ServiceContext, config *dex.Config) (*LightDexon, error) {
 	chainDb, err := dex.CreateDB(ctx, config, "lightchaindata")
 	if err != nil {
@@ -137,7 +144,7 @@ func New(ctx *node.ServiceContext, config *dex.Config) (*LightDexon, error) {
 	}
 
 	ldex.txPool = light.NewTxPool(ldex.chainConfig, ldex.blockchain, ldex.relay)
-	if ldex.protocolManager, err = NewProtocolManager(ldex.chainConfig, light.DefaultClientIndexerConfig, true, config.NetworkId, ldex.eventMux, ldex.engine, ldex.peers, ldex.blockchain, nil, chainDb, ldex.odr, ldex.relay, ldex.serverPool, quitSync, &ldex.wg); err != nil {
+	if ldex.protocolManager, err = NewProtocolManager(ldex.chainConfig, light.DefaultClientIndexerConfig, true, config.NetworkId, ldex.eventMux, ldex.engine, ldex.peers, ldex.blockchain, nil, chainDb, ldex.odr, ldex.relay, ldex.serverPool, quitSync, &ldex.wg, &dummyGov{}); err != nil {
 		return nil, err
 	}
 	ldex.ApiBackend = &LdsApiBackend{ldex, nil}

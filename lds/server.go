@@ -51,7 +51,7 @@ type LdsServer struct {
 
 func NewLdsServer(dex *dex.Dexon, config *dex.Config) (*LdsServer, error) {
 	quitSync := make(chan struct{})
-	pm, err := NewProtocolManager(dex.BlockChain().Config(), light.DefaultServerIndexerConfig, false, config.NetworkId, dex.EventMux(), dex.Engine(), newPeerSet(), dex.BlockChain(), dex.TxPool(), dex.ChainDb(), nil, nil, nil, quitSync, new(sync.WaitGroup))
+	pm, err := NewProtocolManager(dex.BlockChain().Config(), light.DefaultServerIndexerConfig, false, config.NetworkId, dex.EventMux(), dex.Engine(), newPeerSet(), dex.BlockChain(), dex.TxPool(), dex.ChainDb(), nil, nil, nil, quitSync, new(sync.WaitGroup), &dummyGov{})
 	if err != nil {
 		return nil, err
 	}
