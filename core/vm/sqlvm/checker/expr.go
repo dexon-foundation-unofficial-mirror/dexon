@@ -3,6 +3,8 @@ package checker
 import (
 	"bytes"
 	"fmt"
+	"regexp"
+	"strings"
 
 	"github.com/dexon-foundation/decimal"
 
@@ -133,7 +135,7 @@ func checkExpr(n ast.ExprNode,
 		return checkIsOperator(n, s, o, c, el, tr, ta)
 
 	case *ast.LikeOperatorNode:
-		return n
+		return checkLikeOperator(n, s, o, c, el, tr, ta)
 
 	case *ast.CastOperatorNode:
 		return n
@@ -166,6 +168,10 @@ func elAppendTypeErrorAssignDataType(el *errors.ErrorList, n ast.ExprNode,
 	}, nil)
 }
 
+// verifyTypeAction is expected to be used by variables and operators whose
+// types are already decided. The only thing this function does is to check if
+// the type meets the requirement if the type action is mandatory. No type
+// inference is done because the type is already determined.
 func verifyTypeAction(n ast.ExprNode, fn string, dt ast.DataType,
 	el *errors.ErrorList, ta typeAction) ast.ExprNode {
 
@@ -182,11 +188,15 @@ func verifyTypeAction(n ast.ExprNode, fn string, dt ast.DataType,
 	return n
 }
 
+// delegateTypeAction is expected to be used by operators whose types may be
+// undecided. Since an operator usually does not have a way to determine its
+// type by itself, this function just delegates the work to the node which is
+// going to be returned from the check function.
 func delegateTypeAction(n ast.ExprNode, fn string, dt ast.DataType,
 	s schema.Schema, o CheckOptions, c *schemaCache, el *errors.ErrorList,
 	tr schema.TableRef, ta typeAction) ast.ExprNode {
 
-	if dt.Pending() {
+	if ta != nil && dt.Pending() {
 		return checkExpr(n, s, o, c, el, tr, ta)
 	}
 	return verifyTypeAction(n, fn, dt, el, ta)
@@ -2297,25 +2307,24 @@ func checkLikeOperator(n *ast.LikeOperatorNode,
 	fn := "CheckLikeOperator"
 	op := "operator LIKE"
 
-	BYTES := ast.ComposeDataType(
+	dtBytes := ast.ComposeDataType(
 		ast.DataTypeMajorDynamicBytes, ast.DataTypeMinorDontCare)
-	BYTES1 := ast.ComposeDataType(
+	dtBytes1 := ast.ComposeDataType(
 		ast.DataTypeMajorFixedBytes, ast.DataTypeMinor(1-1))
-
-	assignBYTES := newTypeActionAssign(BYTES)
-	assignBYTES1 := newTypeActionAssign(BYTES1)
+	assignBytes := newTypeActionAssign(dtBytes)
+	assignBytes1 := newTypeActionAssign(dtBytes1)
 
 	hasError := false
 
 	object := n.GetObject()
-	object = checkExpr(object, s, o, c, el, tr, assignBYTES)
+	object = checkExpr(object, s, o, c, el, tr, assignBytes)
 	if object != nil {
 		n.SetObject(object)
 	} else {
 		hasError = true
 	}
 	pattern := n.GetSubject()
-	pattern = checkExpr(pattern, s, o, c, el, tr, assignBYTES)
+	pattern = checkExpr(pattern, s, o, c, el, tr, assignBytes)
 	if pattern != nil {
 		n.SetSubject(pattern)
 	} else {
@@ -2323,8 +2332,7 @@ func checkLikeOperator(n *ast.LikeOperatorNode,
 	}
 	escape := n.Escape
 	if escape != nil {
-		// FIXME: how can we report ErrorCodeMultipleEscapeByte?
-		escape = checkExpr(escape, s, o, c, el, tr, assignBYTES1)
+		escape = checkExpr(escape, s, o, c, el, tr, assignBytes1)
 		if escape != nil {
 			n.Escape = escape
 		} else {
@@ -2338,7 +2346,7 @@ func checkLikeOperator(n *ast.LikeOperatorNode,
 	r := ast.ExprNode(n)
 	dt := n.GetType()
 
-	extractOneArgument := func(n ast.Valuer) ([]byte, bool, bool) {
+	extractOne := func(n ast.Valuer) ([]byte, bool, bool) {
 		v, status := extractBytesValue(n, el, fn, op)
 		switch status {
 		case extractBytesValueStatusError:
@@ -2353,7 +2361,7 @@ func checkLikeOperator(n *ast.LikeOperatorNode,
 			panic(fmt.Sprintf("unknown status %d", status))
 		}
 	}
-	extractAllArguments := func(object, pattern, escape ast.Valuer) (
+	extract := func(object, pattern, escape ast.Valuer) (
 		[]byte, []byte, byte, bool, bool) {
 
 		var vobj []byte
@@ -2361,20 +2369,20 @@ func checkLikeOperator(n *ast.LikeOperatorNode,
 		var vesc byte
 
 		null := false
-		if v, n, ok := extractOneArgument(object); ok {
+		if v, n, ok := extractOne(object); ok {
 			vobj = v
 			null = null || n
 		} else {
 			return nil, nil, 0, false, false
 		}
-		if v, n, ok := extractOneArgument(pattern); ok {
+		if v, n, ok := extractOne(pattern); ok {
 			vpat = v
 			null = null || n
 		} else {
 			return nil, nil, 0, false, false
 		}
 		if escape != nil {
-			if v, n, ok := extractOneArgument(escape); !ok {
+			if v, n, ok := extractOne(escape); ok {
 				if !n && len(v) != 1 {
 					panic("escape byte must be exactly one byte")
 				}
@@ -2386,9 +2394,51 @@ func checkLikeOperator(n *ast.LikeOperatorNode,
 		}
 		return vobj, vpat, vesc, null, true
 	}
-	calc := func(vobj, vpat []byte, vesc byte, hasEscape bool) ast.BoolValue {
-		// TODO: implement it
-		return ast.BoolValueFalse
+	calc := func(object, pattern ast.Valuer, vobj, vpat []byte,
+		vesc byte, hasEsc bool) (ast.BoolValue, bool) {
+
+		rePat := strings.Builder{}
+		rePat.WriteString("(?s)^")
+		rePatWriteEncodedByte := func(b byte) {
+			if b < 0x80 {
+				rePat.WriteString(regexp.QuoteMeta(string(b)))
+			} else {
+				rePat.WriteRune(rune(b))
+			}
+		}
+		inEsc := false
+		for _, b := range vpat {
+			switch {
+			case inEsc:
+				rePatWriteEncodedByte(b)
+				inEsc = false
+			case hasEsc && b == vesc:
+				inEsc = true
+			case b == '%':
+				rePat.WriteString(".*?")
+			case b == '_':
+				rePat.WriteByte('.')
+			default:
+				rePatWriteEncodedByte(b)
+			}
+		}
+		if inEsc {
+			el.Append(errors.Error{
+				Position: pattern.GetPosition(),
+				Length:   pattern.GetLength(),
+				Category: errors.ErrorCategorySemantic,
+				Code:     errors.ErrorCodePendingEscapeByte,
+				Severity: errors.ErrorSeverityError,
+				Prefix:   fn,
+				Message: fmt.Sprintf("pattern %s ends with the escape byte %s",
+					ast.QuoteString(vpat), ast.QuoteString([]byte{vesc})),
+			}, nil)
+			return 0, false
+		}
+		rePat.WriteByte('$')
+		re := regexp.MustCompile(rePat.String())
+		out := re.MatchReader(newByteAsRuneReader(vobj))
+		return ast.NewBoolValueFromBool(out), true
 	}
 	if object, ok := object.(ast.Valuer); ok {
 		if pattern, ok := pattern.(ast.Valuer); ok {
@@ -2396,13 +2446,12 @@ func checkLikeOperator(n *ast.LikeOperatorNode,
 			var vpat []byte
 			var vesc byte
 			var null bool
-
 			canFold := true
-			hasEscape := escape != nil
-			if hasEscape {
+			hasEsc := escape != nil
+			if hasEsc {
 				if escape, ok := escape.(ast.Valuer); ok {
 					if vobj, vpat, vesc, null, ok =
-						extractAllArguments(object, pattern, escape); !ok {
+						extract(object, pattern, escape); !ok {
 						return nil
 					}
 				} else {
@@ -2410,17 +2459,19 @@ func checkLikeOperator(n *ast.LikeOperatorNode,
 				}
 			} else {
 				if vobj, vpat, vesc, null, ok =
-					extractAllArguments(object, pattern, nil); !ok {
+					extract(object, pattern, nil); !ok {
 					return nil
 				}
 			}
-
 			if canFold {
 				node := &ast.BoolValueNode{}
 				if null {
 					node.V = ast.BoolValueUnknown
 				} else {
-					node.V = calc(vobj, vpat, vesc, hasEscape)
+					node.V, ok = calc(object, pattern, vobj, vpat, vesc, hasEsc)
+					if !ok {
+						return nil
+					}
 				}
 				node.SetPosition(n.GetPosition())
 				node.SetLength(n.GetLength())

@@ -1,6 +1,9 @@
 package checker
 
 import (
+	"io"
+	"sort"
+
 	"github.com/dexon-foundation/decimal"
 
 	"github.com/dexon-foundation/dexon/core/vm/sqlvm/ast"
@@ -418,6 +421,8 @@ func newColumnRefSlice(c uint8) columnRefSlice {
 	}
 }
 
+var _ sort.Interface = columnRefSlice{}
+
 func (s *columnRefSlice) Append(c schema.ColumnRef, i uint8) {
 	s.columns = append(s.columns, c)
 	s.nodes = append(s.nodes, i)
@@ -512,16 +517,15 @@ var _ typeAction = typeActionAssign{}
 
 func (typeActionAssign) ˉtypeAction() {}
 
+// constantValue is a sum type of three-valued boolean, nullable bytes, and
+// nullable decimal. It is intended to be used by operators which accept
+// multiple kinds of constants, such as relational operators.
 //go-sumtype:decl constantValue
 type constantValue interface {
 	ˉconstantValue()
 }
 
 type constantValueBool ast.BoolValue
-
-var _ constantValue = constantValueBool(0)
-
-func (constantValueBool) ˉconstantValue() {}
 
 func newConstantValueBool(b ast.BoolValue) constantValueBool {
 	return constantValueBool(b)
@@ -531,15 +535,15 @@ func newConstantValueBoolFromNil() constantValueBool {
 	return constantValueBool(ast.BoolValueUnknown)
 }
 
+var _ constantValue = constantValueBool(0)
+
+func (constantValueBool) ˉconstantValue() {}
+
 func (b constantValueBool) GetBool() ast.BoolValue {
 	return ast.BoolValue(b)
 }
 
 type constantValueBytes []byte
-
-var _ constantValue = constantValueBytes{}
-
-func (constantValueBytes) ˉconstantValue() {}
 
 func newConstantValueBytes(b []byte) constantValueBytes {
 	if b == nil {
@@ -552,15 +556,15 @@ func newConstantValueBytesFromNil() constantValueBytes {
 	return nil
 }
 
+var _ constantValue = constantValueBytes{}
+
+func (constantValueBytes) ˉconstantValue() {}
+
 func (b constantValueBytes) GetBytes() []byte {
 	return []byte(b)
 }
 
 type constantValueDecimal decimal.NullDecimal
-
-var _ constantValue = constantValueDecimal{}
-
-func (constantValueDecimal) ˉconstantValue() {}
 
 func newConstantValueDecimal(d decimal.Decimal) constantValueDecimal {
 	return constantValueDecimal{Decimal: d, Valid: true}
@@ -570,6 +574,34 @@ func newConstantValueDecimalFromNil() constantValueDecimal {
 	return constantValueDecimal{Valid: false}
 }
 
+var _ constantValue = constantValueDecimal{}
+
+func (constantValueDecimal) ˉconstantValue() {}
+
 func (d constantValueDecimal) GetDecimal() decimal.NullDecimal {
 	return decimal.NullDecimal(d)
+}
+
+// byteAsRuneReader implements io.RuneReader by returning a byte as if it were
+// a rune. This is used to workaround the limitation that Go's regexp only works
+// for Unicode strings. If we want to use regexp to process binary data, we have
+// to encode it in a way that makes it look like a UTF-8 string.
+type byteAsRuneReader []byte
+
+func newByteAsRuneReader(b []byte) *byteAsRuneReader {
+	return (*byteAsRuneReader)(&b)
+}
+
+var _ io.RuneReader = (*byteAsRuneReader)(nil)
+
+func (b *byteAsRuneReader) ReadRune() (rune, int, error) {
+	if len(*b) == 0 {
+		return 0, 0, io.EOF
+	}
+	r := rune((*b)[0])
+	*b = (*b)[1:]
+	if r < 0x80 {
+		return r, 1, nil
+	}
+	return r, 2, nil
 }
