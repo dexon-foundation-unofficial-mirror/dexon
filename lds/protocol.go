@@ -45,7 +45,7 @@ var (
 )
 
 // Number of implemented message corresponding to different protocol versions.
-var ProtocolLengths = map[uint]uint64{lpv2: 22}
+var ProtocolLengths = map[uint]uint64{lpv2: 24}
 
 const (
 	NetworkId          = 1
@@ -73,6 +73,9 @@ const (
 	SendTxV2Msg            = 0x13
 	GetTxStatusMsg         = 0x14
 	TxStatusMsg            = 0x15
+
+	GetGovStateMsg = 0x16
+	GovStateMsg    = 0x17
 )
 
 type errCode int
@@ -93,6 +96,7 @@ const (
 	ErrInvalidResponse
 	ErrTooManyTimeouts
 	ErrMissingKey
+	ErrInvalidGovStateMsg
 )
 
 func (e errCode) String() string {

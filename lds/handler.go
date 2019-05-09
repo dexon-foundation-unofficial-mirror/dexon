@@ -83,6 +83,7 @@ type BlockChain interface {
 		dexcon.GovernanceStateFetcher, *dexCore.TSigVerifierCache) (int, error)
 	Rollback(chain []common.Hash)
 	GetHeaderByNumber(number uint64) *types.Header
+	GetGovStateByHash(hash common.Hash) (*types.GovState, error)
 	GetGovStateByNumber(number uint64) (*types.GovState, error)
 	GetAncestor(hash common.Hash, number, ancestor uint64, maxNonCanonical *uint64) (common.Hash, uint64)
 	Genesis() *types.Block
@@ -330,7 +331,7 @@ func (pm *ProtocolManager) handle(p *peer) error {
 	}
 }
 
-var reqList = []uint64{GetBlockHeadersMsg, GetBlockBodiesMsg, GetCodeMsg, GetReceiptsMsg, SendTxV2Msg, GetTxStatusMsg, GetProofsV2Msg, GetHelperTrieProofsMsg}
+var reqList = []uint64{GetBlockHeadersMsg, GetBlockBodiesMsg, GetCodeMsg, GetReceiptsMsg, SendTxV2Msg, GetTxStatusMsg, GetProofsV2Msg, GetHelperTrieProofsMsg, GetGovStateMsg}
 
 // handleMsg is invoked whenever an inbound message is received from a remote
 // peer. The remote connection is torn down upon returning any error.
@@ -949,6 +950,45 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 
 		p.fcServer.GotReply(resp.ReqID, resp.BV)
 
+	case GetGovStateMsg:
+		p.Log().Trace("Received gov state request")
+		var req struct {
+			ReqID uint64
+			Hash  common.Hash
+		}
+		if err := msg.Decode(&req); err != nil {
+			return errResp(ErrDecode, "%v: %v", msg, err)
+		}
+
+		govState, err := pm.blockchain.GetGovStateByHash(req.Hash)
+		if err != nil {
+			p.Log().Debug("Invalid gov state msg", "hash", req.Hash.String(), "err", err)
+			return errResp(ErrInvalidGovStateMsg, "hash=%v", req.Hash.String())
+		}
+
+		bv, rcost := p.fcClient.RequestProcessed(costs.baseCost + costs.reqCost)
+		pm.server.fcCostStats.update(msg.Code, 1, rcost)
+		return p.SendGovState(req.ReqID, bv, govState)
+
+	case GovStateMsg:
+		if pm.downloader == nil {
+			return errResp(ErrUnexpectedResponse, "")
+		}
+
+		p.Log().Trace("Received block header response message")
+		// A batch of headers arrived to one of our previous requests
+		var resp struct {
+			ReqID, BV uint64
+			GovState  types.GovState
+		}
+		if err := msg.Decode(&resp); err != nil {
+			return errResp(ErrDecode, "msg %v: %v", msg, err)
+		}
+		p.fcServer.GotReply(resp.ReqID, resp.BV)
+		if err := pm.downloader.DeliverGovState(p.id, &resp.GovState); err != nil {
+			log.Debug(fmt.Sprint(err))
+		}
+
 	default:
 		p.Log().Trace("Received unknown message", "code", msg.Code)
 		return errResp(ErrInvalidMsgCode, "%v", msg.Code)
@@ -1085,7 +1125,27 @@ func (pc *peerConnection) RequestHeadersByNumber(origin uint64, amount int, skip
 }
 
 func (pc *peerConnection) RequestGovStateByHash(hash common.Hash) error {
-	return fmt.Errorf("Not implemented yet")
+	reqID := genReqID()
+	rq := &distReq{
+		getCost: func(dp distPeer) uint64 {
+			peer := dp.(*peer)
+			return peer.GetRequestCost(GetGovStateMsg, 1)
+		},
+		canSend: func(dp distPeer) bool {
+			return dp.(*peer) == pc.peer
+		},
+		request: func(dp distPeer) func() {
+			peer := dp.(*peer)
+			cost := peer.GetRequestCost(GetGovStateMsg, 1)
+			peer.fcServer.QueueRequest(reqID, cost)
+			return func() { peer.RequestGovStateByHash(reqID, cost, hash) }
+		},
+	}
+	_, ok := <-pc.manager.reqDist.queue(rq)
+	if !ok {
+		return light.ErrNoPeers
+	}
+	return nil
 }
 
 func (d *downloaderPeerNotify) registerPeer(p *peer) {

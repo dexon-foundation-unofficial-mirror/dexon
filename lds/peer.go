@@ -195,6 +195,10 @@ func (p *peer) SendBlockBodiesRLP(reqID, bv uint64, bodies []rlp.RawValue) error
 	return sendResponse(p.rw, BlockBodiesMsg, reqID, bv, bodies)
 }
 
+func (p *peer) SendGovState(reqID, bv uint64, govState *types.GovState) error {
+	return sendResponse(p.rw, GovStateMsg, reqID, bv, govState)
+}
+
 // SendCodeRLP sends a batch of arbitrary internal data, corresponding to the
 // hashes requested.
 func (p *peer) SendCode(reqID, bv uint64, data [][]byte) error {
@@ -241,6 +245,11 @@ func (p *peer) RequestHeadersByNumber(reqID, cost, origin uint64, amount int, sk
 func (p *peer) RequestBodies(reqID, cost uint64, hashes []common.Hash) error {
 	p.Log().Debug("Fetching batch of block bodies", "count", len(hashes))
 	return sendRequest(p.rw, GetBlockBodiesMsg, reqID, cost, hashes)
+}
+
+func (p *peer) RequestGovStateByHash(reqID, cost uint64, hash common.Hash) error {
+	p.Log().Debug("Fetching one gov state", "hash", hash)
+	return sendRequest(p.rw, GetGovStateMsg, reqID, cost, hash)
 }
 
 // RequestCode fetches a batch of arbitrary data from a node's known state
