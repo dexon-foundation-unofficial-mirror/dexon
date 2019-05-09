@@ -375,7 +375,7 @@ func doTest(cmdline []string) {
 	build.MustRun(gotestForLegacyEvm)
 
 	gotestForCoreIntegration := goTool("test", buildFlags(env, false)...)
-	gotestForCoreIntegration.Args = append(gotestForCoreIntegration.Args, "-timeout", "30m")
+	gotestForCoreIntegration.Args = append(gotestForCoreIntegration.Args, "-timeout", "30m", "-v")
 	if *coverage {
 		gotestForCoreIntegration.Args = append(gotestForCoreIntegration.Args, "-covermode=atomic", "-cover")
 	}
