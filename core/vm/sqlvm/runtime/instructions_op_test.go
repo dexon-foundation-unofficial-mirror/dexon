@@ -3999,7 +3999,7 @@ func (s *instructionSuite) TestOpFuncSubString() {
 							ast.ComposeDataType(ast.DataTypeMajorUint, 0),
 						},
 						[]Tuple{
-							{&Raw{Value: decimal.NewFromFloat(2)}},
+							{&Raw{Value: decimal.NewFromFloat(1)}},
 						},
 					),
 					makeOperand(

@@ -456,7 +456,7 @@ func fnSubString(ctx *common.Context, ops []*Operand, length uint64) (result *Op
 
 	result = &Operand{
 		Meta: make([]ast.DataType, len(op.Meta)),
-		Data: make([]Tuple, len(op.Data)),
+		Data: make([]Tuple, length),
 	}
 
 	dynBytesType := ast.ComposeDataType(ast.DataTypeMajorDynamicBytes, 0)
@@ -466,9 +466,14 @@ func fnSubString(ctx *common.Context, ops []*Operand, length uint64) (result *Op
 
 	starts, ends := ops[1], ops[2]
 
-	var start, end uint64
+	var start, end, t uint64
 	for i := uint64(0); i < length; i++ {
-		result.Data[i] = make(Tuple, len(op.Data[i]))
+		t = i
+		if op.IsImmediate {
+			t = 0
+		}
+
+		result.Data[i] = make(Tuple, len(op.Data[t]))
 
 		if starts.IsImmediate {
 			start, err = ast.DecimalToUint64(starts.Data[0][0].Value)
@@ -490,8 +495,8 @@ func fnSubString(ctx *common.Context, ops []*Operand, length uint64) (result *Op
 			return
 		}
 
-		for j := 0; j < len(op.Data[i]); j++ {
-			result.Data[i][j] = &Raw{Bytes: op.Data[i][j].Bytes[start : start+end]}
+		for j := 0; j < len(op.Data[t]); j++ {
+			result.Data[i][j] = &Raw{Bytes: op.Data[t][j].Bytes[start : start+end]}
 		}
 	}
 	return
