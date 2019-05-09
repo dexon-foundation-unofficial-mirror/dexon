@@ -53,12 +53,12 @@ const (
 
 // 0x50 range - function ops
 const (
-	FUNC = iota + 0x50
+	FUNC OpCode = iota + 0x50
 )
 
 // 0x60 range - storage ops
 const (
-	INSERT = iota + 0x60
+	INSERT OpCode = iota + 0x60
 	UPDATE
 	LOAD
 	DELETE
