@@ -18,7 +18,7 @@ matrix:
         - sudo chown root:$USER /etc/fuse.conf
         - make libbls
         - go run build/ci.go install
-        - travis_retry go run build/ci.go test -coverage $TEST_PACKAGES
+        - travis_retry go run build/ci.go test -coverage github.com/dexon-foundation/dexon/dex/consensus/integration_test
 
     - os: osx
       go: 1.12.x
@@ -34,7 +34,7 @@ matrix:
         - unset -f cd # workaround for https://github.com/travis-ci/travis-ci/issues/8703
         - make libbls
         - go run build/ci.go install
-        - travis_retry go run build/ci.go test -coverage $TEST_PACKAGES
+        - travis_retry go run build/ci.go test -coverage github.com/dexon-foundation/dexon/dex/consensus/integration_test
       addons:
         homebrew:
           packages:
