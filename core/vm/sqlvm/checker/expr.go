@@ -1242,7 +1242,7 @@ func checkOrOperator(n *ast.OrOperatorNode,
 	}
 	subject := n.GetSubject()
 	dtSubject := subject.GetType()
-	if !validateBoolType(dtSubject, el, object, fn, op) {
+	if !validateBoolType(dtSubject, el, subject, fn, op) {
 		return nil
 	}
 	dt := n.GetType()
