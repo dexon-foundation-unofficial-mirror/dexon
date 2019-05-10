@@ -170,6 +170,7 @@ const (
 	ErrorCodeConstantTooLong
 	ErrorCodeNonConstantExpression
 	ErrorCodeInvalidAddressChecksum
+	ErrorCodeInvalidCastDataType
 
 	// Runtime Error
 	ErrorCodeInvalidOperandNum
@@ -229,6 +230,7 @@ var errorCodeMap = [...]string{
 	ErrorCodeConstantTooLong:               "constant too long",
 	ErrorCodeNonConstantExpression:         "non-constant expression",
 	ErrorCodeInvalidAddressChecksum:        "invalid address checksum",
+	ErrorCodeInvalidCastDataType:           "invalid cast data type",
 
 	// Runtime Error
 	ErrorCodeInvalidOperandNum:  "invalid operand number",

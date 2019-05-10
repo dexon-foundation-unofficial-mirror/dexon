@@ -138,7 +138,7 @@ func checkExpr(n ast.ExprNode,
 		return checkLikeOperator(n, s, o, c, el, tr, ta)
 
 	case *ast.CastOperatorNode:
-		return n
+		return checkCastOperator(n, s, o, c, el, tr, ta)
 
 	case *ast.InOperatorNode:
 		return checkInOperator(n, s, o, c, el, tr, ta)
