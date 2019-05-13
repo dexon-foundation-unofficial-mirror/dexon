@@ -109,6 +109,20 @@ func WriteHeadFastBlockHash(db DatabaseWriter, hash common.Hash) {
 	}
 }
 
+func ReadHeadGovStateHash(db DatabaseReader) common.Hash {
+	data, _ := db.Get(headGovStateKey)
+	if len(data) == 0 {
+		return common.Hash{}
+	}
+	return common.BytesToHash(data)
+}
+
+func WriteHeadGovStateHash(db DatabaseWriter) common.Hash {
+	if err := db.Put(headGovStateKey); err != nil {
+		log.Crit("Failed to store last gov state's header hash", "err", err)
+	}
+}
+
 // ReadFastTrieProgress retrieves the number of tries nodes fast synced to allow
 // reporting correct numbers across restarts.
 func ReadFastTrieProgress(db DatabaseReader) uint64 {

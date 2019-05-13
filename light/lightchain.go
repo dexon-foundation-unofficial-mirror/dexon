@@ -305,6 +305,20 @@ func (self *LightChain) GetBlockByNumber(ctx context.Context, number uint64) (*t
 	return self.GetBlock(ctx, hash, number)
 }
 
+func (self *LightChain) CurrentGovState() *types.GovState {
+	hash := rawdb.ReadHeadGovStateHash(self.chainDb)
+	if hash == (common.Hash{}) {
+		log.Warn("Head gov state hash not found")
+		return nil
+	}
+	govState, err := self.GetGovStateByHash(hash)
+	if err != nil {
+		log.Warn("Get gov state by hash fail, err=%v", err)
+		return nil
+	}
+	return govState
+}
+
 func (self *LightChain) GetGovStateByHash(hash common.Hash) (*types.GovState, error) {
 	header := self.GetHeaderByHash(hash)
 	if header == nil {
