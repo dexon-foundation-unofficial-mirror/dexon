@@ -82,7 +82,7 @@ loop:
 				Amount:    big.NewInt(100000),
 				Data:      input,
 				Nonce:     nonce,
-				Gas:       210000,
+				Gas:       200000,
 			}
 			if config.Batch {
 				ctxs[i] = ctx
