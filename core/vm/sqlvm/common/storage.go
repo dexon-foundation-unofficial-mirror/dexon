@@ -88,9 +88,9 @@ func (s *Storage) GetIndexEntryPathHash(
 	return s.hashPathKey(key)
 }
 
-// GetReverseIndexPathHash return the hash address to IndexRev structure for a
-// row in a table.
-func (s *Storage) GetReverseIndexPathHash(
+// GetIndexRowIDRevPathHash return the hash address to indexRowIDRev structure
+// for a row in a table.
+func (s *Storage) GetIndexRowIDRevPathHash(
 	tableRef schema.TableRef,
 	rowID uint64,
 ) common.Hash {
