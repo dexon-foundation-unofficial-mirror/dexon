@@ -27,7 +27,7 @@ import (
 // Genesis hashes to enforce below configs on.
 var (
 	MainnetGenesisHash = common.HexToHash("0x7108ec505c66c3735053746697442050175db51753b3f8c721294b3ba15fa598")
-	TestnetGenesisHash = common.HexToHash("0x7d8700a7a731162880adff4f21398a901c0b75d907bec8f4eac51460f94cb846")
+	TestnetGenesisHash = common.HexToHash("0xab07961b462908b63b8127b7729a4a5a2421480d56b2cdbe0cc36d5118472cec")
 	TaipeiGenesisHash  = common.HexToHash("0x5929cb70fe4ba22dce821b2efca737a1874a0f5a34f3ffb9a1e157516622e20b")
 	YilanGenesisHash   = common.HexToHash("0xdcdafc044c24d728c6149ecfada746d8de6e59fc5d18063caf7950badc1df12e")
 )
@@ -81,7 +81,7 @@ var (
 	// TestnetChainConfig contains the chain parameters to run a node on the Taiwan test network.
 	TestnetChainConfig = &ChainConfig{
 		ChainID:             big.NewInt(238),
-		DMoment:             1554694200,
+		DMoment:             1558447800,
 		HomesteadBlock:      big.NewInt(0),
 		DAOForkBlock:        nil,
 		DAOForkSupport:      true,
@@ -95,7 +95,7 @@ var (
 			GenesisCRSText:    "In DEXON, we trust.",
 			Owner:             common.HexToAddress("0xBF8C48A620bacc46907f9B89732D25E47A2D7Cf7"),
 			MinStake:          new(big.Int).Mul(big.NewInt(1e18), big.NewInt(1e6)),
-			LockupPeriod:      86400 * 1000,
+			LockupPeriod:      3600 * 2 * 1000,
 			MiningVelocity:    0.1875,
 			NextHalvingSupply: new(big.Int).Mul(big.NewInt(1e18), big.NewInt(2.5e9)),
 			LastHalvedAmount:  new(big.Int).Mul(big.NewInt(1e18), big.NewInt(1.5e9)),
@@ -106,7 +106,7 @@ var (
 			NotaryParamAlpha:  70.5,
 			NotaryParamBeta:   264,
 			RoundLength:       1200,
-			MinBlockInterval:  1000,
+			MinBlockInterval:  500,
 			FineValues: []*big.Int{
 				new(big.Int).Mul(big.NewInt(1e18), big.NewInt(200)),
 				new(big.Int).Mul(big.NewInt(1e18), big.NewInt(1)),
